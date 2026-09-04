@@ -1,0 +1,499 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "TBOI: Repentance+ Options Schema",
+  "version": "1.0.0",
+  "description": "Mapeo extensible y declarativo de opciones del juego (options.ini) para The Binding of Isaac: Repentance+. Permite anadir y adaptar versiones futuras sin recompilar.",
+  "categories": {
+    "display": "Pantalla y Graficos",
+    "audio": "Audio y Voces",
+    "gameplay": "Jugabilidad y Controles",
+    "hud": "Interfaz y HUD",
+    "multiplayer": "Multijugador Online",
+    "console": "Consola y Mods",
+    "disclaimers": "Avisos y Betas"
+  },
+  "version_rules": {
+    "v1.9.7.15": {
+      "unsupported_keys": [
+        "UseExclusiveFullscreen",
+        "EnableEpicOverlay",
+        "EosCrossplay"
+      ]
+    },
+    "v1.9.7.17": {
+      "unsupported_keys": []
+    },
+    "default_fallback": {
+      "unsupported_keys": []
+    }
+  },
+  "options": [
+    {
+      "key": "Language",
+      "label": "Language",
+      "type": "choice",
+      "category": "gameplay",
+      "default": 0,
+      "choices": [
+        { "value": 0, "label": "English" },
+        { "value": 2, "label": "Japanese" },
+        { "value": 3, "label": "French" },
+        { "value": 4, "label": "Spanish" },
+        { "value": 5, "label": "German" },
+        { "value": 10, "label": "Russian" },
+        { "value": 11, "label": "Korean" },
+        { "value": 13, "label": "Chinese" }
+      ]
+    },
+    {
+      "key": "MusicVolume",
+      "label": "Music Volume",
+      "type": "float",
+      "category": "audio",
+      "default": 0.3000,
+      "min": 0.0,
+      "max": 1.0,
+      "precision": 4
+    },
+    {
+      "key": "MusicEnabled",
+      "label": "Music Enabled",
+      "type": "bool",
+      "category": "audio",
+      "default": 1
+    },
+    {
+      "key": "SFXVolume",
+      "label": "SFX Volume",
+      "type": "float",
+      "category": "audio",
+      "default": 0.3000,
+      "min": 0.0,
+      "max": 1.0,
+      "precision": 4
+    },
+    {
+      "key": "MapOpacity",
+      "label": "Map Opacity",
+      "type": "float",
+      "category": "hud",
+      "default": 0.3000,
+      "min": 0.0,
+      "max": 1.0,
+      "precision": 4
+    },
+    {
+      "key": "Fullscreen",
+      "label": "Fullscreen",
+      "type": "bool",
+      "category": "display",
+      "default": 0
+    },
+    {
+      "key": "UseExclusiveFullscreen",
+      "label": "Exclusive Fullscreen",
+      "type": "bool",
+      "category": "display",
+      "default": 0,
+      "introduced_in": "v1.9.7.16"
+    },
+    {
+      "key": "Filter",
+      "label": "Filter",
+      "type": "bool",
+      "category": "display",
+      "default": 0
+    },
+    {
+      "key": "Exposure",
+      "label": "Exposure",
+      "type": "float",
+      "category": "display",
+      "default": 1.0000,
+      "min": 0.0,
+      "max": 1.0,
+      "precision": 4
+    },
+    {
+      "key": "Gamma",
+      "label": "Gamma",
+      "type": "float",
+      "category": "display",
+      "default": 1.0000,
+      "min": 0.0,
+      "max": 2.0,
+      "precision": 4
+    },
+    {
+      "key": "ControllerHotplug",
+      "label": "Controller Hotplug",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 1
+    },
+    {
+      "key": "PopUps",
+      "label": "PopUps",
+      "type": "choice",
+      "category": "hud",
+      "default": 1,
+      "choices": [
+        { "value": 0, "label": "Off" },
+        { "value": 1, "label": "Large" },
+        { "value": 2, "label": "Small" }
+      ]
+    },
+    {
+      "key": "CameraStyle",
+      "label": "Active Cam",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 1
+    },
+    {
+      "key": "ShowRecentItems",
+      "label": "Show Recent Items",
+      "type": "choice",
+      "category": "hud",
+      "default": 0,
+      "choices": [
+        { "value": 0, "label": "Off" },
+        { "value": 1, "label": "Normal" },
+        { "value": 2, "label": "Mini" }
+      ]
+    },
+    {
+      "key": "HudOffset",
+      "label": "Hud Offset",
+      "type": "float",
+      "category": "hud",
+      "default": 1.0000,
+      "min": 0.0,
+      "max": 1.0,
+      "precision": 4
+    },
+    {
+      "key": "TryImportSave",
+      "label": "Try Import Save",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 0
+    },
+    {
+      "key": "FoundHUD",
+      "label": "Found HUD",
+      "type": "bool",
+      "category": "hud",
+      "default": 0
+    },
+    {
+      "key": "EnableMods",
+      "label": "Enable Mods",
+      "type": "bool",
+      "category": "console",
+      "default": 0
+    },
+    {
+      "key": "RumbleEnabled",
+      "label": "Rumble Enabled",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 1
+    },
+    {
+      "key": "ChargeBars",
+      "label": "Chargebars",
+      "type": "bool",
+      "category": "hud",
+      "default": 0
+    },
+    {
+      "key": "BulletVisibility",
+      "label": "Bullet Visibility",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 0
+    },
+    {
+      "key": "TouchMode",
+      "label": "Touch Mode",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 1
+    },
+    {
+      "key": "AimLock",
+      "label": "Aim Lock",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 1
+    },
+    {
+      "key": "JacobEsauControls",
+      "label": "JacobEsau Controls",
+      "type": "choice",
+      "category": "gameplay",
+      "default": 0,
+      "choices": [
+        { "value": 0, "label": "Classic" },
+        { "value": 1, "label": "Better" }
+      ]
+    },
+    {
+      "key": "AscentVoiceOver",
+      "label": "Ascent VoiceOver",
+      "type": "bool",
+      "category": "audio",
+      "default": 1
+    },
+    {
+      "key": "OnlineHud",
+      "label": "Online HUD",
+      "type": "choice",
+      "category": "multiplayer",
+      "default": 0,
+      "choices": [
+        { "value": 0, "label": "Normal" },
+        { "value": 1, "label": "Mini" },
+        { "value": 2, "label": "Hearts" },
+        { "value": 3, "label": "Off" }
+      ]
+    },
+    {
+      "key": "StreamerMode",
+      "label": "Streamer Mode",
+      "type": "bool",
+      "category": "multiplayer",
+      "default": 0
+    },
+    {
+      "key": "OnlinePlayerVolume",
+      "label": "Online Player Volume",
+      "type": "int",
+      "category": "multiplayer",
+      "default": 6,
+      "min": 0,
+      "max": 10
+    },
+    {
+      "key": "OnlinePlayerOpacity",
+      "label": "Online Player Opacity",
+      "type": "int",
+      "category": "multiplayer",
+      "default": 10,
+      "min": 0,
+      "max": 10
+    },
+    {
+      "key": "OnlineChatEnabled",
+      "label": "Online Chat Enabled",
+      "type": "bool",
+      "category": "multiplayer",
+      "default": 1
+    },
+    {
+      "key": "OnlineChatFilterEnabled",
+      "label": "Online Chat Filter",
+      "type": "bool",
+      "category": "multiplayer",
+      "default": 1
+    },
+    {
+      "key": "MultiplayerColorSet",
+      "label": "Multiplayer Color Set",
+      "type": "choice",
+      "category": "multiplayer",
+      "default": 0,
+      "choices": [
+        { "value": 0, "label": "Set 1" },
+        { "value": 1, "label": "Set 2" },
+        { "value": 2, "label": "Set 3" },
+        { "value": 3, "label": "Set 4" }
+      ]
+    },
+    {
+      "key": "OnlineInputDelay",
+      "label": "Online Input Delay",
+      "type": "int",
+      "category": "multiplayer",
+      "default": 3,
+      "min": 1,
+      "max": 5
+    },
+    {
+      "key": "ItemInfoDisplayEnabled",
+      "label": "Item Info Display",
+      "type": "bool",
+      "category": "hud",
+      "default": 0
+    },
+    {
+      "key": "AcceptedPublicBeta_<VERSION>",
+      "label": "Accepted Beta ({VERSION})",
+      "type": "bool",
+      "category": "disclaimers",
+      "default": 0,
+      "is_version_dynamic": true
+    },
+    {
+      "key": "AcceptedModDisclaimer",
+      "label": "Accepted Mod Disclaimer",
+      "type": "bool",
+      "category": "disclaimers",
+      "default": 0
+    },
+    {
+      "key": "AcceptedDataCollectionDisclaimer",
+      "label": "Accepted Data Disclaimer",
+      "type": "bool",
+      "category": "disclaimers",
+      "default": 0
+    },
+    {
+      "key": "EnableDebugConsole",
+      "label": "Debug Console",
+      "type": "bool",
+      "category": "console",
+      "default": 0
+    },
+    {
+      "key": "MaxScale",
+      "label": "Max Scale",
+      "type": "int",
+      "category": "display",
+      "default": 99,
+      "min": 1,
+      "max": 99
+    },
+    {
+      "key": "MaxRenderScale",
+      "label": "Max Render Scale",
+      "type": "int",
+      "category": "display",
+      "default": 2,
+      "min": 1,
+      "max": 99
+    },
+    {
+      "key": "VSync",
+      "label": "Vertical Sync",
+      "type": "bool",
+      "category": "display",
+      "default": 1
+    },
+    {
+      "key": "PauseOnFocusLost",
+      "label": "Pause on Focus Lost",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 1
+    },
+    {
+      "key": "SteamCloud",
+      "label": "Steam Cloud",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 1
+    },
+    {
+      "key": "MouseControl",
+      "label": "Mouse Control",
+      "type": "bool",
+      "category": "gameplay",
+      "default": 0
+    },
+    {
+      "key": "BossHpOnBottom",
+      "label": "Boss HP On Bottom",
+      "type": "bool",
+      "category": "hud",
+      "default": 1
+    },
+    {
+      "key": "AnnouncerVoiceMode",
+      "label": "Announcer Voice Mode",
+      "type": "choice",
+      "category": "audio",
+      "default": 0,
+      "choices": [
+        { "value": 0, "label": "Random" },
+        { "value": 1, "label": "Off" },
+        { "value": 2, "label": "Always on" }
+      ]
+    },
+    {
+      "key": "ConsoleFont",
+      "label": "Console Font",
+      "type": "choice",
+      "category": "console",
+      "default": 0,
+      "choices": [
+        { "value": 0, "label": "Default" },
+        { "value": 1, "label": "Small" },
+        { "value": 2, "label": "Tiny" }
+      ]
+    },
+    {
+      "key": "FadedConsoleDisplay",
+      "label": "Faded Console Display",
+      "type": "bool",
+      "category": "console",
+      "default": 0
+    },
+    {
+      "key": "SaveCommandHistory",
+      "label": "Save Command History",
+      "type": "bool",
+      "category": "console",
+      "default": 1
+    },
+    {
+      "key": "WindowWidth",
+      "label": "Window Width",
+      "type": "int",
+      "category": "display",
+      "default": 960,
+      "min": 320,
+      "max": 7680
+    },
+    {
+      "key": "WindowHeight",
+      "label": "Window Height",
+      "type": "int",
+      "category": "display",
+      "default": 540,
+      "min": 240,
+      "max": 4320
+    },
+    {
+      "key": "WindowPosX",
+      "label": "Window Pos X",
+      "type": "int",
+      "category": "display",
+      "default": 8
+    },
+    {
+      "key": "WindowPosY",
+      "label": "Window Pos Y",
+      "type": "int",
+      "category": "display",
+      "default": 32
+    },
+    {
+      "key": "EnableEpicOverlay",
+      "label": "Epic Overlay",
+      "type": "bool",
+      "category": "multiplayer",
+      "default": 1,
+      "introduced_in": "v1.9.7.16"
+    },
+    {
+      "key": "EosCrossplay",
+      "label": "EOS Crossplay",
+      "type": "bool",
+      "category": "multiplayer",
+      "default": 0,
+      "introduced_in": "v1.9.7.16"
+    }
+  ]
+}

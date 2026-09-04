@@ -1,0 +1,63 @@
+# ==========================================
+# TBOI: Launcher - Git Ignore Configuration
+# ==========================================
+
+# --- Build Outputs & CMake ---
+build/
+bin/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.ninja
+*.ninja_deps
+*.ninja_log
+compile_commands.json
+
+# --- MSVC / Visual Studio ---
+.vs/
+*.user
+*.vcxproj.user
+*.vcxproj.filters
+*.suo
+*.sln.docstates
+*.ilk
+*.pdb
+*.obj
+*.iobj
+*.ipdb
+*.tlog
+*.idb
+*.log
+x64/
+Win32/
+Debug/
+Release/
+
+# --- Compiled Binaries & Libraries ---
+*.exe
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+*.exp
+
+# --- Unit Tests & Scratch Outputs ---
+test_*.ini
+test_mods/
+test_*_dir/
+
+# --- IDEs & Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.clangd/
+
+# --- OS Specific ---
+Thumbs.db
+desktop.ini
+.DS_Store
