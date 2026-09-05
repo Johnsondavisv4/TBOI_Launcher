@@ -20,6 +20,7 @@ struct IsaacInstallationInfo {
 class IsaacDetector {
 public:
     static std::optional<IsaacInstallationInfo> Detect();
+    static std::optional<IsaacInstallationInfo> DetectViaSteamAPI();
     static bool ValidateExecutable(const std::filesystem::path& exePath, IsaacInstallationInfo& outInfo);
     static std::string ExtractVersionFromPE(const std::filesystem::path& exePath);
     static std::filesystem::path ResolveOptionsIniPath(const std::filesystem::path& isaacDir);

@@ -17,7 +17,10 @@ public:
 
     bool Initialize(const std::filesystem::path& schemaPath, const std::string& detectedVersion);
     bool LoadFromIni(const std::filesystem::path& iniPath);
-    bool SaveToIni(const std::filesystem::path& iniPath);
+    bool SaveToIni(const std::filesystem::path& iniPath = "");
+
+    void SetTargetIniPath(const std::filesystem::path& path) { m_targetIniPath = path; }
+    const std::filesystem::path& GetTargetIniPath() const { return m_targetIniPath; }
 
     std::string GetValue(const std::string& key) const;
     void SetValue(const std::string& key, const std::string& value);
@@ -36,6 +39,7 @@ public:
     void SetActiveVersion(const std::string& version);
 
     std::vector<OptionDefinition> GetActiveOptions() const;
+    std::optional<OptionDefinition> FindOption(const std::string& key) const;
 
 private:
     OptionsSchema m_schema;
@@ -43,6 +47,7 @@ private:
     std::map<std::string, std::string> m_values;
     std::vector<std::string> m_fileOrderKeys;
     std::filesystem::path m_loadedIniPath;
+    std::filesystem::path m_targetIniPath;
     bool m_initialized = false;
 };
 

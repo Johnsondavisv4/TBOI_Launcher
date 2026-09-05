@@ -3,6 +3,7 @@
 #include "core/options_manager.h"
 #include "core/mod_manager.h"
 #include "core/game_runner.h"
+#include "core/launcher_config.h"
 
 #include <iostream>
 #include <cassert>
@@ -50,6 +51,9 @@ int main() {
 
     // Check version rules for v1.9.7.17
     auto opts17 = schema.GetOptionsForVersion("v1.9.7.17");
+    auto unsupp17 = schema.GetUnsupportedKeysForVersion("v1.9.7.17");
+    assert(unsupp17.find("AcceptedModDisclaimer") == unsupp17.end()); // AcceptedModDisclaimer is present across all versions
+
     bool foundBeta17 = false;
     bool foundExclusive17 = false;
     for (const auto& opt : opts17) {
@@ -62,7 +66,12 @@ int main() {
     }
     assert(foundBeta17);
     assert(foundExclusive17);
-    std::cout << "[TEST] v1.9.7.17 Schema dynamic rules: PASSED\n";
+
+    // Test version normalization (removing build suffixes like .J460)
+    assert(OptionsSchema::ResolveDynamicKey("AcceptedPublicBeta_<VERSION>", "v1.9.7.17.J460") == "AcceptedPublicBeta_v1.9.7.17");
+    assert(OptionsSchema::ResolveDynamicKey("AcceptedPublicBeta_<VERSION>", "v1.9.7.15") == "AcceptedPublicBeta_v1.9.7.15");
+
+    std::cout << "[TEST] v1.9.7.17 Schema dynamic rules & normalization: PASSED\n";
 
     // 2. Test OptionsManager
     fs::path tempIni = "test_options.ini";
@@ -76,6 +85,7 @@ int main() {
 
     OptionsManager optMgr;
     assert(optMgr.Initialize(schemaPath, "v1.9.7.15"));
+    optMgr.SetTargetIniPath(tempIni);
     assert(optMgr.LoadFromIni(tempIni));
 
     assert(optMgr.GetInt("Language") == 4);
@@ -83,11 +93,11 @@ int main() {
     assert(optMgr.GetBool("AcceptedPublicBeta_v1.9.7.15") == false);
     assert(optMgr.GetBool("Fullscreen") == true);
 
-    // Modify options and save
+    // Modify options and save using empty string (relies on loaded/target ini path)
     optMgr.SetInt("Language", 0);
     optMgr.SetFloat("MusicVolume", 0.7500, 4);
     optMgr.SetBool("AcceptedPublicBeta_v1.9.7.15", true);
-    assert(optMgr.SaveToIni(tempIni));
+    assert(optMgr.SaveToIni(""));
 
     // Reload and verify persistence
     OptionsManager optMgr2;
@@ -141,9 +151,9 @@ int main() {
     // 4. Test GameRunner
     fs::path tempVanillaDir = "test_vanilla_dir";
     fs::create_directories(tempVanillaDir);
-    // Vanilla launch does not create steam_appid.txt
-    assert(!fs::exists(tempVanillaDir / "steam_appid.txt"));
-    std::cout << "[TEST] GameRunner Vanilla Mode (No steam_appid.txt forced): PASSED\n";
+    assert(GameRunner::EnsureSteamAppId(tempVanillaDir));
+    assert(fs::exists(tempVanillaDir / "steam_appid.txt"));
+    std::cout << "[TEST] GameRunner EnsureSteamAppId: PASSED\n";
     fs::remove_all(tempVanillaDir);
 
     fs::path tempDowngradeDir = "test_downgrade_dir";
@@ -159,7 +169,48 @@ int main() {
     std::cout << "[TEST] GameRunner Downgraded Mode (steam_appid.txt = 250900): PASSED\n";
     fs::remove_all(tempDowngradeDir);
 
-    // 5. Test IsaacDetector
+    // 5. Test Exit Code Translation & Log Extractor
+    std::string succDesc = GameRunner::TranslateExitCode(0);
+    assert(succDesc.find("Clean and normal") != std::string::npos);
+
+    std::string steamDesc = GameRunner::TranslateExitCode(0x00000035);
+    assert(steamDesc.find("Steamworks") != std::string::npos);
+
+    std::string crashDesc = GameRunner::TranslateExitCode(0xC0000005);
+    assert(crashDesc.find("Access Violation") != std::string::npos);
+
+    std::string dllDesc = GameRunner::TranslateExitCode(0xC0000135);
+    assert(dllDesc.find("DLL") != std::string::npos);
+
+    fs::path testLog = "test_mock_log.txt";
+    {
+        std::ofstream ofs(testLog);
+        for (int i = 1; i <= 30; ++i) {
+            ofs << "Log line " << i << " of testing log\n";
+        }
+    }
+    std::string logTail = GameRunner::GetLastLinesOfLog(testLog, 5);
+    assert(logTail.find("Log line 30") != std::string::npos);
+    assert(logTail.find("Log line 26") != std::string::npos);
+    assert(logTail.find("Log line 10") == std::string::npos);
+    fs::remove(testLog);
+    std::cout << "[TEST] GameRunner Exit Code & Log Extractor: PASSED\n";
+
+    // 6. Test LauncherConfig
+    fs::path testConfigIni = "test_launcher_config.ini";
+    LauncherConfig cfg;
+    cfg.SetStealthMode(true);
+    cfg.SetCustomIsaacPath("C:/Games/Binding of Isaac/isaac-ng.exe");
+    assert(cfg.Save(testConfigIni));
+
+    LauncherConfig cfgLoaded;
+    assert(cfgLoaded.Load(testConfigIni));
+    assert(cfgLoaded.GetStealthMode() == true);
+    assert(cfgLoaded.GetCustomIsaacPath() == "C:/Games/Binding of Isaac/isaac-ng.exe");
+    fs::remove(testConfigIni);
+    std::cout << "[TEST] LauncherConfig Read/Write: PASSED\n";
+
+    // 7. Test IsaacDetector
     auto libs = IsaacDetector::FindSteamLibraries();
     std::cout << "[TEST] Steam Libraries detected: " << libs.size() << "\n";
     for (const auto& lib : libs) {

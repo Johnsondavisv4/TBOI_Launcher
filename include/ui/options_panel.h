@@ -4,8 +4,7 @@
 
 #include <wx/wx.h>
 #include <wx/notebook.h>
-#include <wx/spinctrl.h>
-#include <wx/slider.h>
+#include <wx/valnum.h>
 #include <map>
 #include <memory>
 
@@ -14,9 +13,7 @@ namespace TBOI {
 struct OptionControlBinding {
     OptionDefinition definition;
     wxCheckBox* checkBox = nullptr;
-    wxSpinCtrl* spinCtrl = nullptr;
-    wxSlider* slider = nullptr;
-    wxStaticText* valueLabel = nullptr;
+    wxTextCtrl* textCtrl = nullptr;
     wxChoice* choice = nullptr;
 };
 

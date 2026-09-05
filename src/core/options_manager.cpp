@@ -59,6 +59,7 @@ std::vector<OptionDefinition> OptionsManager::GetActiveOptions() const {
 
 bool OptionsManager::LoadFromIni(const fs::path& iniPath) {
     m_loadedIniPath = iniPath;
+    m_targetIniPath = iniPath;
     m_values.clear();
     m_fileOrderKeys.clear();
 
@@ -91,7 +92,10 @@ bool OptionsManager::LoadFromIni(const fs::path& iniPath) {
 }
 
 bool OptionsManager::SaveToIni(const fs::path& iniPath) {
-    fs::path targetPath = iniPath.empty() ? m_loadedIniPath : iniPath;
+    fs::path targetPath = iniPath;
+    if (targetPath.empty()) {
+        targetPath = m_loadedIniPath.empty() ? m_targetIniPath : m_loadedIniPath;
+    }
     if (targetPath.empty()) {
         return false;
     }
@@ -106,7 +110,9 @@ bool OptionsManager::SaveToIni(const fs::path& iniPath) {
         return false;
     }
 
-    // Write options in organized order according to active schema
+    file << "[Options]\n";
+
+    // Write options in organized order according to active schema (like REPENTOGON Launcher)
     auto activeOptions = GetActiveOptions();
     std::set<std::string> writtenKeys;
 
@@ -115,11 +121,19 @@ bool OptionsManager::SaveToIni(const fs::path& iniPath) {
         if (val.empty()) {
             val = opt.defaultValue;
         }
+        if (opt.type == OptionType::Float) {
+            try {
+                double fVal = std::stod(val);
+                std::ostringstream ss;
+                ss << std::fixed << std::setprecision(opt.precision > 0 ? opt.precision : 4) << fVal;
+                val = ss.str();
+            } catch (...) {}
+        }
         file << opt.resolvedKey << "=" << val << "\n";
         writtenKeys.insert(opt.resolvedKey);
     }
 
-    // Write any leftover custom or unmanaged keys present in m_values
+    // Write any leftover custom or unmanaged keys present in m_values (REPENTOGON unsupported options preservation)
     for (const auto& [key, val] : m_values) {
         if (writtenKeys.find(key) == writtenKeys.end()) {
             // Check if key is unsupported for current version
@@ -192,6 +206,16 @@ void OptionsManager::SetFloat(const std::string& key, double value, int precisio
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(precision) << value;
     m_values[key] = ss.str();
+}
+
+std::optional<OptionDefinition> OptionsManager::FindOption(const std::string& key) const {
+    auto opts = GetActiveOptions();
+    for (const auto& opt : opts) {
+        if (opt.rawKey == key || opt.resolvedKey == key) {
+            return opt;
+        }
+    }
+    return std::nullopt;
 }
 
 } // namespace TBOI

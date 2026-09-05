@@ -2,15 +2,15 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "name": "TBOI: Repentance+ Options Schema",
   "version": "1.0.0",
-  "description": "Mapeo extensible y declarativo de opciones del juego (options.ini) para The Binding of Isaac: Repentance+. Permite anadir y adaptar versiones futuras sin recompilar.",
+  "description": "Extensible and declarative game options schema (options.ini) for The Binding of Isaac: Repentance+.",
   "categories": {
-    "display": "Pantalla y Graficos",
-    "audio": "Audio y Voces",
-    "gameplay": "Jugabilidad y Controles",
-    "hud": "Interfaz y HUD",
-    "multiplayer": "Multijugador Online",
-    "console": "Consola y Mods",
-    "disclaimers": "Avisos y Betas"
+    "display": "Display & Graphics",
+    "audio": "Audio & Voices",
+    "gameplay": "Gameplay & Controls",
+    "hud": "HUD & Interface",
+    "multiplayer": "Online Multiplayer",
+    "console": "Console & Mods",
+    "disclaimers": "Disclaimers & Betas"
   },
   "version_rules": {
     "v1.9.7.15": {

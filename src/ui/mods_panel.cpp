@@ -36,11 +36,11 @@ void ModsPanel::BuildUI() {
 
     // Top Search & Filter Bar
     auto* topBarSizer = new wxBoxSizer(wxHORIZONTAL);
-    auto* searchLabel = new wxStaticText(this, wxID_ANY, "Buscar mod:");
+    auto* searchLabel = new wxStaticText(this, wxID_ANY, "Search mod:");
     m_searchCtrl = new wxTextCtrl(this, ID_MOD_SEARCH, "", wxDefaultPosition, wxDefaultSize);
-    m_searchCtrl->SetHint("Filtrar por nombre o carpeta...");
+    m_searchCtrl->SetHint("Filter by name or folder...");
 
-    auto* btnRefresh = new wxButton(this, ID_BTN_MOD_REFRESH, "🔄 Refrescar");
+    auto* btnRefresh = new wxButton(this, ID_BTN_MOD_REFRESH, "Refresh");
 
     topBarSizer->Add(searchLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
     topBarSizer->Add(m_searchCtrl, 1, wxEXPAND | wxRIGHT, 8);
@@ -62,14 +62,14 @@ void ModsPanel::BuildUI() {
     auto* rightPanel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_THEME);
     auto* rightSizer = new wxBoxSizer(wxVERTICAL);
 
-    m_modNameLabel = new wxStaticText(rightPanel, wxID_ANY, "Selecciona un mod");
+    m_modNameLabel = new wxStaticText(rightPanel, wxID_ANY, "Select a mod");
     m_modNameLabel->SetFont(m_modNameLabel->GetFont().Bold().Larger());
 
     m_modTypeBadge = new wxStaticText(rightPanel, wxID_ANY, "");
-    m_modFolderLabel = new wxStaticText(rightPanel, wxID_ANY, "Carpeta: -");
-    m_modIdLabel = new wxStaticText(rightPanel, wxID_ANY, "ID de Workshop: -");
+    m_modFolderLabel = new wxStaticText(rightPanel, wxID_ANY, "Folder: -");
+    m_modIdLabel = new wxStaticText(rightPanel, wxID_ANY, "Workshop ID: -");
 
-    auto* descHeader = new wxStaticText(rightPanel, wxID_ANY, "Descripción:");
+    auto* descHeader = new wxStaticText(rightPanel, wxID_ANY, "Description:");
     descHeader->SetFont(descHeader->GetFont().Bold());
 
     m_modDescText = new wxTextCtrl(rightPanel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY);
@@ -89,9 +89,9 @@ void ModsPanel::BuildUI() {
 
     // Bottom Action Bar
     auto* bottomSizer = new wxBoxSizer(wxHORIZONTAL);
-    auto* btnEnableAll = new wxButton(this, ID_BTN_MOD_ENABLE_ALL, "✔ Activar Todos");
-    auto* btnDisableAll = new wxButton(this, ID_BTN_MOD_DISABLE_ALL, "✖ Desactivar Todos");
-    auto* btnOpenFolder = new wxButton(this, ID_BTN_MOD_OPEN_FOLDER, "📁 Abrir Carpeta de Mods");
+    auto* btnEnableAll = new wxButton(this, ID_BTN_MOD_ENABLE_ALL, "Enable All");
+    auto* btnDisableAll = new wxButton(this, ID_BTN_MOD_DISABLE_ALL, "Disable All");
+    auto* btnOpenFolder = new wxButton(this, ID_BTN_MOD_OPEN_FOLDER, "Open Mods Folder");
 
     bottomSizer->Add(btnEnableAll, 0, wxRIGHT, 6);
     bottomSizer->Add(btnDisableAll, 0, wxRIGHT, 6);
@@ -135,10 +135,10 @@ void ModsPanel::FilterList(const wxString& query) {
         m_modList->SetSelection(0);
         UpdateDetails(0);
     } else {
-        m_modNameLabel->SetLabel("No se encontraron mods");
+        m_modNameLabel->SetLabel("No mods found");
         m_modTypeBadge->SetLabel("");
-        m_modFolderLabel->SetLabel("Carpeta: -");
-        m_modIdLabel->SetLabel("ID de Workshop: -");
+        m_modFolderLabel->SetLabel("Folder: -");
+        m_modIdLabel->SetLabel("Workshop ID: -");
         m_modDescText->SetValue("");
     }
 }
@@ -150,9 +150,9 @@ void ModsPanel::UpdateDetails(int selectedIndex) {
 
     const auto& mod = m_filteredMods[selectedIndex];
     m_modNameLabel->SetLabel(wxString::FromUTF8(mod.name.c_str()));
-    m_modTypeBadge->SetLabel(mod.isLocal ? wxString("Mod Local / No-Steam") : wxString("Steam Workshop Mod"));
-    m_modFolderLabel->SetLabel("Carpeta: " + wxString::FromUTF8(mod.directoryName.c_str()));
-    m_modIdLabel->SetLabel(mod.id.empty() ? wxString("ID de Workshop: N/A") : wxString("ID de Workshop: ") + wxString::FromUTF8(mod.id.c_str()));
+    m_modTypeBadge->SetLabel(mod.isLocal ? wxString("Local / Non-Steam Mod") : wxString("Steam Workshop Mod"));
+    m_modFolderLabel->SetLabel("Folder: " + wxString::FromUTF8(mod.directoryName.c_str()));
+    m_modIdLabel->SetLabel(mod.id.empty() ? wxString("Workshop ID: N/A") : wxString("Workshop ID: ") + wxString::FromUTF8(mod.id.c_str()));
     m_modDescText->SetValue(wxString::FromUTF8(mod.description.c_str()));
 }
 

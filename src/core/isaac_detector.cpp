@@ -1,4 +1,5 @@
 #include "core/isaac_detector.h"
+#include "steam_api.h"
 
 #include <windows.h>
 #include <shlobj.h>
@@ -36,6 +37,26 @@ static std::string ReadRegistryString(HKEY hKeyRoot, LPCWSTR subKey, LPCWSTR val
     return "";
 }
 
+static fs::path NormalizeWindowsPath(const fs::path& inPath) {
+    std::error_code ec;
+    fs::path can = fs::canonical(inPath, ec);
+    std::wstring ws;
+    if (!ec) {
+        ws = can.wstring();
+        if (ws.rfind(L"\\\\?\\", 0) == 0) {
+            ws = ws.substr(4);
+        }
+    } else {
+        ws = inPath.lexically_normal().make_preferred().wstring();
+    }
+
+    if (ws.size() >= 2 && ws[1] == L':' && ws[0] >= L'a' && ws[0] <= L'z') {
+        ws[0] = towupper(ws[0]);
+    }
+
+    return fs::path(ws).make_preferred();
+}
+
 std::vector<fs::path> IsaacDetector::FindSteamLibraries() {
     std::vector<fs::path> libraries;
 
@@ -62,7 +83,7 @@ std::vector<fs::path> IsaacDetector::FindSteamLibraries() {
         return libraries;
     }
 
-    fs::path steamRoot(steamPath);
+    fs::path steamRoot = NormalizeWindowsPath(fs::path(steamPath));
     libraries.push_back(steamRoot);
 
     // Parse libraryfolders.vdf
@@ -85,7 +106,7 @@ std::vector<fs::path> IsaacDetector::FindSteamLibraries() {
                             normalized += libPathStr[i];
                         }
                     }
-                    fs::path libPath(normalized);
+                    fs::path libPath = NormalizeWindowsPath(fs::path(normalized));
                     if (fs::exists(libPath)) {
                         bool alreadyAdded = false;
                         for (const auto& existing : libraries) {
@@ -123,60 +144,38 @@ std::string IsaacDetector::ExtractVersionFromPE(const fs::path& exePath) {
     }
 
     file.seekg(dosHeader.e_lfanew, std::ios::beg);
-    IMAGE_NT_HEADERS32 ntHeaders;
+    IMAGE_NT_HEADERS ntHeaders;
     file.read(reinterpret_cast<char*>(&ntHeaders), sizeof(ntHeaders));
     if (ntHeaders.Signature != IMAGE_NT_SIGNATURE) {
         return "vUnknown";
     }
 
+    // Read section headers to scan for version strings
     IMAGE_SECTION_HEADER sectionHeader;
     for (int i = 0; i < ntHeaders.FileHeader.NumberOfSections; ++i) {
         file.read(reinterpret_cast<char*>(&sectionHeader), sizeof(sectionHeader));
-        char sectionName[9] = { 0 };
-        std::memcpy(sectionName, sectionHeader.Name, 8);
-
-        if (std::strncmp(sectionName, ".rdata", 6) == 0) {
-            std::vector<char> rdataBuffer(sectionHeader.SizeOfRawData);
-            file.seekg(sectionHeader.PointerToRawData, std::ios::beg);
-            file.read(rdataBuffer.data(), sectionHeader.SizeOfRawData);
-
-            std::string rdataStr(rdataBuffer.begin(), rdataBuffer.end());
+        if (strncmp(reinterpret_cast<char*>(sectionHeader.Name), ".rdata", 6) == 0 ||
+            strncmp(reinterpret_cast<char*>(sectionHeader.Name), ".data", 5) == 0 ||
+            strncmp(reinterpret_cast<char*>(sectionHeader.Name), ".rsrc", 5) == 0) {
             
-            // Search for "Binding of Isaac: Repentance+ v"
-            const std::string needle = "Binding of Isaac: Repentance+ v";
-            size_t pos = rdataStr.find(needle);
-            if (pos != std::string::npos) {
-                size_t vStart = pos + needle.length() - 1; // starts with 'v'
-                size_t vEnd = vStart;
-                while (vEnd < rdataStr.size() && rdataStr[vEnd] != '\0' && rdataStr[vEnd] != '\r' && rdataStr[vEnd] != '\n' && (vEnd - vStart) < 32) {
-                    ++vEnd;
-                }
-                if (vEnd > vStart) {
-                    return rdataStr.substr(vStart, vEnd - vStart);
-                }
-            }
+            std::vector<char> sectionData(sectionHeader.SizeOfRawData);
+            std::streampos currentPos = file.tellg();
+            file.seekg(sectionHeader.PointerToRawData, std::ios::beg);
+            file.read(sectionData.data(), sectionHeader.SizeOfRawData);
+            file.seekg(currentPos, std::ios::beg);
 
-            // Fallback regex in .rdata
-            std::regex verRegex(R"(Binding of Isaac:\s*[a-zA-Z+ ]*(v[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9a-zA-Z]+)?))");
+            std::string sectionStr(sectionData.begin(), sectionData.end());
+            // Match patterns like "v1.9.7.15", "v1.9.7.17", "1.9.7.17"
+            std::regex verRegex(R"(v1\.[0-9]+\.[0-9]+\.[0-9]+)");
             std::smatch match;
-            if (std::regex_search(rdataStr, match, verRegex) && match.size() > 1) {
-                return match[1].str();
+            if (std::regex_search(sectionStr, match, verRegex)) {
+                return match[0].str();
             }
             break;
         }
     }
 
-    // Fallback: Read file chunk-by-chunk for version string
-    file.clear();
-    file.seekg(0, std::ios::beg);
-    std::string fullBuffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    std::regex verRegex(R"(v1\.9\.7\.[0-9]+)");
-    std::smatch match;
-    if (std::regex_search(fullBuffer, match, verRegex)) {
-        return match[0].str();
-    }
-
-    return "v1.9.7.15"; // Safe default if Repentance+ binary format is detected
+    return "v1.9.7.17"; // Safe default if Repentance+ binary format is detected
 }
 
 fs::path IsaacDetector::ResolveOptionsIniPath(const fs::path& isaacDir) {
@@ -215,17 +214,42 @@ bool IsaacDetector::ValidateExecutable(const fs::path& exePath, IsaacInstallatio
         return false;
     }
 
-    outInfo.executablePath = exePath;
-    outInfo.rootDirectory = exePath.parent_path();
-    outInfo.detectedVersion = ExtractVersionFromPE(exePath);
-    outInfo.optionsIniPath = ResolveOptionsIniPath(outInfo.rootDirectory);
-    outInfo.modsDirectory = ResolveModsDirectory(outInfo.rootDirectory);
-    outInfo.logFilePath = outInfo.optionsIniPath.parent_path() / "log.txt";
+    fs::path cleanPath = NormalizeWindowsPath(exePath);
+    outInfo.executablePath = cleanPath;
+    outInfo.rootDirectory = NormalizeWindowsPath(cleanPath.parent_path());
+    outInfo.detectedVersion = ExtractVersionFromPE(cleanPath);
+    outInfo.optionsIniPath = NormalizeWindowsPath(ResolveOptionsIniPath(outInfo.rootDirectory));
+    outInfo.modsDirectory = NormalizeWindowsPath(ResolveModsDirectory(outInfo.rootDirectory));
+    outInfo.logFilePath = NormalizeWindowsPath(outInfo.optionsIniPath.parent_path() / "log.txt");
     outInfo.valid = true;
     return true;
 }
 
+std::optional<IsaacInstallationInfo> IsaacDetector::DetectViaSteamAPI() {
+    if (SteamApps()) {
+        char folder[MAX_PATH] = { 0 };
+        uint32 len = SteamApps()->GetAppInstallDir(250900, folder, sizeof(folder));
+        if (len > 0 && folder[0] != '\0') {
+            fs::path candidate = fs::path(folder) / "isaac-ng.exe";
+            if (fs::exists(candidate)) {
+                IsaacInstallationInfo info;
+                if (ValidateExecutable(candidate, info)) {
+                    return info;
+                }
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 std::optional<IsaacInstallationInfo> IsaacDetector::Detect() {
+    // 1. Primary: Official Steamworks API (GetAppInstallDir)
+    auto steamResult = DetectViaSteamAPI();
+    if (steamResult) {
+        return steamResult;
+    }
+
+    // 2. Fallback: Registry & libraryfolders.vdf
     auto libraries = FindSteamLibraries();
     constexpr const wchar_t* relPath = L"steamapps/common/The Binding of Isaac Rebirth/isaac-ng.exe";
 

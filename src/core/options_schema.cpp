@@ -24,7 +24,16 @@ std::string OptionsSchema::ResolveDynamicKey(const std::string& rawKey, const st
     const std::string token = "<VERSION>";
     size_t pos = key.find(token);
     if (pos != std::string::npos) {
-        key.replace(pos, token.length(), version);
+        // Normalize version to vX.Y.Z.W format (e.g. v1.9.7.17), removing any build suffix like .J460
+        std::string cleanVersion = version;
+        size_t jPos = cleanVersion.find(".J");
+        if (jPos == std::string::npos) {
+            jPos = cleanVersion.find(".j");
+        }
+        if (jPos != std::string::npos) {
+            cleanVersion = cleanVersion.substr(0, jPos);
+        }
+        key.replace(pos, token.length(), cleanVersion);
     }
     return key;
 }

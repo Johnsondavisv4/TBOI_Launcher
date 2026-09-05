@@ -4,11 +4,15 @@
 
 # --- Build Outputs & CMake ---
 build/
+build*/
 bin/
 out/
+target/
+cmake-build-*/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
+CTestTestfile.cmake
 Makefile
 *.ninja
 *.ninja_deps
@@ -29,11 +33,21 @@ compile_commands.json
 *.ipdb
 *.tlog
 *.idb
-*.log
+*.lastbuildstate
 x64/
 Win32/
 Debug/
 Release/
+RelWithDebInfo/
+MinSizeRel/
+
+# --- Runtime & Dynamic Artifacts ---
+launcher-data/
+launcher-data-build/
+*.log
+launcher.log
+tboi_launcher.ini
+*.bin
 
 # --- Compiled Binaries & Libraries ---
 *.exe
@@ -44,6 +58,19 @@ Release/
 *.a
 *.exp
 
+# --- Pre-built Vendor SDK Exceptions ---
+!deps/steamapi/lib/steam_api.lib
+!deps/steamapi/lib/steam_api.dll
+!deps/steamapi/lib/steam_appid.txt
+
+# --- Temporary & Backup Files ---
+*.bak
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+
 # --- Unit Tests & Scratch Outputs ---
 test_*.ini
 test_mods/
@@ -52,12 +79,10 @@ test_*_dir/
 # --- IDEs & Editors ---
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 .clangd/
 
 # --- OS Specific ---
 Thumbs.db
 desktop.ini
 .DS_Store
+
