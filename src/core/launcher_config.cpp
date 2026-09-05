@@ -57,6 +57,8 @@ bool LauncherConfig::Load(const fs::path& configPath) {
             m_stealthMode = (val == "1" || val == "true" || val == "True");
         } else if (key == "AutoLaunch" || key == "auto_launch") {
             m_autoLaunch = (val == "1" || val == "true" || val == "True");
+        } else if (key == "SkipModUpdates" || key == "skip_mod_updates") {
+            m_skipModUpdates = (val == "1" || val == "true" || val == "True");
         } else if (key == "IsaacPath" || key == "isaac_path" || key == "custom_isaac_path") {
             m_customIsaacPath = val;
         }
@@ -75,6 +77,7 @@ bool LauncherConfig::Save(const fs::path& configPath) const {
     ofs << "[General]\n";
     ofs << "StealthMode=" << (m_stealthMode ? "1" : "0") << "\n";
     ofs << "AutoLaunch=" << (m_autoLaunch ? "1" : "0") << "\n";
+    ofs << "SkipModUpdates=" << (m_skipModUpdates ? "1" : "0") << "\n";
     if (!m_customIsaacPath.empty()) {
         ofs << "IsaacPath=" << m_customIsaacPath << "\n";
     }

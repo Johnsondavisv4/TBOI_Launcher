@@ -21,12 +21,16 @@ public:
     bool GetAutoLaunch() const { return m_autoLaunch; }
     void SetAutoLaunch(bool val) { m_autoLaunch = val; }
 
+    bool GetSkipModUpdates() const { return m_skipModUpdates; }
+    void SetSkipModUpdates(bool val) { m_skipModUpdates = val; }
+
     const std::string& GetCustomIsaacPath() const { return m_customIsaacPath; }
     void SetCustomIsaacPath(const std::string& path) { m_customIsaacPath = path; }
 
 private:
     bool m_stealthMode = false;
     bool m_autoLaunch = false;
+    bool m_skipModUpdates = false;
     std::string m_customIsaacPath;
 };
 

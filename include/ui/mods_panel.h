@@ -32,6 +32,7 @@ private:
     wxStaticText* m_modIdLabel = nullptr;
     wxStaticText* m_modTypeBadge = nullptr;
     wxTextCtrl* m_modDescText = nullptr;
+    wxButton* m_btnReinstall = nullptr;
 
     void OnItemToggled(wxCommandEvent& event);
     void OnItemSelected(wxCommandEvent& event);
@@ -40,6 +41,7 @@ private:
     void OnDisableAll(wxCommandEvent& event);
     void OnOpenFolder(wxCommandEvent& event);
     void OnRefresh(wxCommandEvent& event);
+    void OnReinstall(wxCommandEvent& event);
 
     wxDECLARE_EVENT_TABLE();
 };

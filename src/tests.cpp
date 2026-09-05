@@ -4,6 +4,7 @@
 #include "core/mod_manager.h"
 #include "core/game_runner.h"
 #include "core/launcher_config.h"
+#include "core/mod_updater.h"
 
 #include <iostream>
 #include <cassert>
@@ -200,17 +201,72 @@ int main() {
     fs::path testConfigIni = "test_launcher_config.ini";
     LauncherConfig cfg;
     cfg.SetStealthMode(true);
+    cfg.SetSkipModUpdates(true);
     cfg.SetCustomIsaacPath("C:/Games/Binding of Isaac/isaac-ng.exe");
     assert(cfg.Save(testConfigIni));
 
     LauncherConfig cfgLoaded;
     assert(cfgLoaded.Load(testConfigIni));
     assert(cfgLoaded.GetStealthMode() == true);
+    assert(cfgLoaded.GetSkipModUpdates() == true);
     assert(cfgLoaded.GetCustomIsaacPath() == "C:/Games/Binding of Isaac/isaac-ng.exe");
     fs::remove(testConfigIni);
-    std::cout << "[TEST] LauncherConfig Read/Write: PASSED\n";
+    std::cout << "[TEST] LauncherConfig Read/Write (including SkipModUpdates): PASSED\n";
 
-    // 7. Test IsaacDetector
+    // 7. Test ModUpdaterEngine metadata helpers, version comparison & copy logic
+    assert(ModUpdaterEngine::FormatModFolderName("repentogon", 250900123) == "repentogon_250900123");
+    assert(ModUpdaterEngine::FormatModFolderName("", 88888) == "workshop_88888_88888");
+
+    assert(ModUpdaterEngine::CompareVersions("1.0", "1.1") == -1);
+    assert(ModUpdaterEngine::CompareVersions("2.0.1", "2.0.0") == 1);
+    assert(ModUpdaterEngine::CompareVersions("1.5", "1.5.0") == 0);
+
+    fs::path tempXmlPath = "test_updater_metadata.xml";
+    {
+        std::ofstream ofs(tempXmlPath);
+        ofs << "<metadata>\n";
+        ofs << "  <directory>external_item_descriptions</directory>\n";
+        ofs << "  <name>External Item Descriptions</name>\n";
+        ofs << "  <version>1.5.2</version>\n";
+        ofs << "  <id>836319872</id>\n";
+        ofs << "</metadata>\n";
+    }
+    std::string outDir, outName, outVer;
+    assert(ModUpdaterEngine::ParseMetadata(tempXmlPath, outDir, outName, outVer));
+    assert(outDir == "external_item_descriptions");
+    assert(outName == "External Item Descriptions");
+    assert(outVer == "1.5.2");
+    assert(ModUpdaterEngine::FormatModFolderName(outDir, 836319872) == "external_item_descriptions_836319872");
+
+    uint64_t outId = 0;
+    assert(ModUpdaterEngine::ParseMetadataId(tempXmlPath, outId));
+    assert(outId == 836319872);
+    fs::remove(tempXmlPath);
+
+    // Test CopyModDirectory and disable.it preservation
+    fs::path mockCache = "test_mock_cache";
+    fs::path mockDst = "test_mock_dst";
+    fs::create_directories(mockCache);
+    fs::create_directories(mockDst);
+    {
+        std::ofstream ofs(mockCache / "metadata.xml");
+        ofs << "<metadata><version>2.0</version></metadata>\n";
+        std::ofstream ofs2(mockCache / "main.lua");
+        ofs2 << "-- main lua\n";
+        std::ofstream ofs3(mockDst / "disable.it");
+        ofs3 << "";
+    }
+    std::atomic<bool> cancelFlag(false);
+    assert(ModUpdaterEngine::CopyModDirectory(mockCache, mockDst, cancelFlag));
+    assert(fs::exists(mockDst / "metadata.xml"));
+    assert(fs::exists(mockDst / "main.lua"));
+    assert(fs::exists(mockDst / "disable.it")); // disable.it must be preserved!
+    fs::remove_all(mockCache);
+    fs::remove_all(mockDst);
+
+    std::cout << "[TEST] ModUpdaterEngine Parsing, Versions & disable.it Preservation: PASSED\n";
+
+    // 8. Test IsaacDetector
     auto libs = IsaacDetector::FindSteamLibraries();
     std::cout << "[TEST] Steam Libraries detected: " << libs.size() << "\n";
     for (const auto& lib : libs) {
@@ -231,3 +287,4 @@ int main() {
     std::cout << "========================================\n";
     return 0;
 }
+

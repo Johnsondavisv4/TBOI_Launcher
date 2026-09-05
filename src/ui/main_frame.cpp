@@ -1,6 +1,7 @@
 #include "ui/main_frame.h"
 #include "ui/options_dialog.h"
 #include "ui/checklogs_dialog.h"
+#include "ui/mod_update_dialog.h"
 #include "core/game_runner.h"
 #include "steam_api.h"
 
@@ -273,6 +274,18 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
         Raise();
         wxMessageBox("No valid The Binding of Isaac executable was found.", "Error", wxOK | wxICON_ERROR, this);
         return;
+    }
+
+    // Check and download Steam Workshop mod updates before launching
+    if (m_isSteamActive && m_launcherConfig && !m_launcherConfig->GetSkipModUpdates() && !isStealth) {
+        if (m_isaacInfo.valid && !m_isaacInfo.modsDirectory.empty()) {
+            Log("Checking for mod updates in Steam Workshop...");
+            ModUpdateDialog updateDlg(this, m_isaacInfo.modsDirectory, 0, m_launcherConfig);
+            updateDlg.ShowModal();
+            if (m_modMgr) {
+                m_modMgr->ScanMods(m_isaacInfo.modsDirectory);
+            }
+        }
     }
 
     m_isGameRunning = true;

@@ -1,11 +1,17 @@
 #include "ui/mods_panel.h"
+#include "ui/mod_update_dialog.h"
 
 #include <wx/statline.h>
 #include <wx/utils.h>
 #include <windows.h>
 #include <shellapi.h>
+#include <fstream>
+#include <filesystem>
 
 namespace TBOI {
+
+namespace fs = std::filesystem;
+
 
 enum {
     ID_MOD_SEARCH = wxID_HIGHEST + 300,
@@ -13,7 +19,8 @@ enum {
     ID_BTN_MOD_ENABLE_ALL,
     ID_BTN_MOD_DISABLE_ALL,
     ID_BTN_MOD_OPEN_FOLDER,
-    ID_BTN_MOD_REFRESH
+    ID_BTN_MOD_REFRESH,
+    ID_BTN_MOD_REINSTALL
 };
 
 wxBEGIN_EVENT_TABLE(ModsPanel, wxPanel)
@@ -24,6 +31,7 @@ wxBEGIN_EVENT_TABLE(ModsPanel, wxPanel)
     EVT_BUTTON(ID_BTN_MOD_DISABLE_ALL, ModsPanel::OnDisableAll)
     EVT_BUTTON(ID_BTN_MOD_OPEN_FOLDER, ModsPanel::OnOpenFolder)
     EVT_BUTTON(ID_BTN_MOD_REFRESH, ModsPanel::OnRefresh)
+    EVT_BUTTON(ID_BTN_MOD_REINSTALL, ModsPanel::OnReinstall)
 wxEND_EVENT_TABLE()
 
 ModsPanel::ModsPanel(wxWindow* parent, std::shared_ptr<ModManager> modMgr)
@@ -74,6 +82,9 @@ void ModsPanel::BuildUI() {
 
     m_modDescText = new wxTextCtrl(rightPanel, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY);
 
+    m_btnReinstall = new wxButton(rightPanel, ID_BTN_MOD_REINSTALL, "Reinstall / Update Mod");
+    m_btnReinstall->Enable(false);
+
     rightSizer->Add(m_modNameLabel, 0, wxALL | wxEXPAND, 6);
     rightSizer->Add(m_modTypeBadge, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
     rightSizer->Add(m_modFolderLabel, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
@@ -81,6 +92,7 @@ void ModsPanel::BuildUI() {
     rightSizer->Add(new wxStaticLine(rightPanel), 0, wxEXPAND | wxALL, 4);
     rightSizer->Add(descHeader, 0, wxLEFT | wxRIGHT | wxTOP, 6);
     rightSizer->Add(m_modDescText, 1, wxEXPAND | wxALL, 6);
+    rightSizer->Add(m_btnReinstall, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
 
     rightPanel->SetSizer(rightSizer);
     contentSizer->Add(rightPanel, 2, wxEXPAND);
@@ -145,6 +157,7 @@ void ModsPanel::FilterList(const wxString& query) {
 
 void ModsPanel::UpdateDetails(int selectedIndex) {
     if (selectedIndex < 0 || selectedIndex >= static_cast<int>(m_filteredMods.size())) {
+        if (m_btnReinstall) m_btnReinstall->Enable(false);
         return;
     }
 
@@ -154,6 +167,41 @@ void ModsPanel::UpdateDetails(int selectedIndex) {
     m_modFolderLabel->SetLabel("Folder: " + wxString::FromUTF8(mod.directoryName.c_str()));
     m_modIdLabel->SetLabel(mod.id.empty() ? wxString("Workshop ID: N/A") : wxString("Workshop ID: ") + wxString::FromUTF8(mod.id.c_str()));
     m_modDescText->SetValue(wxString::FromUTF8(mod.description.c_str()));
+
+    bool isWorkshop = !mod.id.empty() && !mod.isLocal;
+    if (m_btnReinstall) {
+        m_btnReinstall->Enable(isWorkshop);
+        m_btnReinstall->SetLabel(isWorkshop ? "Reinstall / Update Mod" : "Reinstall (Non-Workshop Mod)");
+    }
+}
+
+void ModsPanel::OnReinstall(wxCommandEvent&) {
+    int sel = m_modList ? m_modList->GetSelection() : -1;
+    if (sel >= 0 && sel < static_cast<int>(m_filteredMods.size())) {
+        const auto& mod = m_filteredMods[sel];
+        if (!mod.id.empty() && !mod.isLocal) {
+            int res = wxMessageBox(
+                wxString::Format("Would you like to reinstall \"%s\"?\n\nThis will delete the mod files and attempt to redownload the latest version from the Steam workshop.", wxString::FromUTF8(mod.name.c_str())),
+                "TBOI: Launcher",
+                wxYES_NO | wxICON_QUESTION,
+                this
+            );
+            if (res != wxYES) {
+                return;
+            }
+
+            try {
+                PublishedFileId_t fileId = std::stoull(mod.id);
+                ModManagerReinstallDialog(this, fileId, mod.name).ShowModal();
+                if (m_modMgr) {
+                    fs::path modFolder = m_modMgr->GetModsDirectory() / mod.directoryName;
+                    std::ofstream(modFolder / "Update.it");
+                    ModUpdateDialog(this, m_modMgr->GetModsDirectory(), fileId).ShowModal();
+                    RefreshModList();
+                }
+            } catch (...) {}
+        }
+    }
 }
 
 void ModsPanel::OnItemToggled(wxCommandEvent& event) {
