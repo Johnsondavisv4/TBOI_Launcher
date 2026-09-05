@@ -1,0 +1,13 @@
+{
+  "delete": [
+    "EOSSDK-Win32-Shipping.dll"
+  ],
+  "create": {},
+  "patch": [
+    "isaac-ng.exe",
+    "resources\\packed\\afterbirthp.a",
+    "tools\\ResourceExtractor\\Linux\\filelist.txt",
+    "tools\\ResourceExtractor\\filelist.txt",
+    "tools\\ResourceExtractor\\macOS\\filelist.txt"
+  ]
+}
