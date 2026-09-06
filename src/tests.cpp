@@ -7,6 +7,7 @@
 #include "core/mod_updater.h"
 #include "core/diff_patcher.h"
 #include "core/version_manager.h"
+#include "core/interpolation_manager.h"
 #include "redirect/redirect_rules.h"
 
 #include <iostream>
@@ -476,6 +477,54 @@ int main() {
     assert(!TryRedirectPathA("resources/packed/repentance.a", testModsDir, testDataDir, testExeRootDir, outRedA));
 
     std::cout << "[TEST] Transparent Mods & Data Redirection Rules: PASSED\n";
+
+    // Test InterpolationManager
+    fs::path testInterpPatchRoot = "interpolation_patch";
+    if (!fs::exists(testInterpPatchRoot)) testInterpPatchRoot = "../interpolation_patch";
+    if (!fs::exists(testInterpPatchRoot)) testInterpPatchRoot = "build32/Release/interpolation_patch";
+
+    fs::path testGameRoot = "test_game_interp";
+    fs::create_directories(testGameRoot);
+
+    IsaacInstallationInfo testIsaacInfo;
+    testIsaacInfo.valid = true;
+    testIsaacInfo.detectedVersion = "v1.9.7.15";
+    testIsaacInfo.rootDirectory = testGameRoot;
+
+    // Check status before installation
+    auto stBefore = InterpolationManager::GetStatus("vanilla", testIsaacInfo, "versions", testInterpPatchRoot);
+    assert(!stBefore.isInstalled);
+    assert(stBefore.isSupported);
+
+    // Install patch
+    assert(InterpolationManager::InstallPatch("vanilla", testIsaacInfo, "versions", testInterpPatchRoot));
+    auto stAfter = InterpolationManager::GetStatus("vanilla", testIsaacInfo, "versions", testInterpPatchRoot);
+    assert(stAfter.isInstalled);
+    assert(stAfter.isEnabled);
+    assert(fs::exists(testGameRoot / "dinput8.dll"));
+    assert(fs::exists(testGameRoot / "interpol.ini"));
+
+    // Toggle disabled
+    assert(InterpolationManager::SetEnabled("vanilla", testIsaacInfo, "versions", false));
+    auto stDisabled = InterpolationManager::GetStatus("vanilla", testIsaacInfo, "versions", testInterpPatchRoot);
+    assert(stDisabled.isInstalled);
+    assert(!stDisabled.isEnabled);
+
+    // Toggle re-enabled
+    assert(InterpolationManager::SetEnabled("vanilla", testIsaacInfo, "versions", true));
+    auto stEnabled = InterpolationManager::GetStatus("vanilla", testIsaacInfo, "versions", testInterpPatchRoot);
+    assert(stEnabled.isInstalled);
+    assert(stEnabled.isEnabled);
+
+    // Uninstall patch
+    assert(InterpolationManager::UninstallPatch("vanilla", testIsaacInfo, "versions"));
+    auto stUninstalled = InterpolationManager::GetStatus("vanilla", testIsaacInfo, "versions", testInterpPatchRoot);
+    assert(!stUninstalled.isInstalled);
+    assert(!fs::exists(testGameRoot / "dinput8.dll"));
+    assert(!fs::exists(testGameRoot / "interpol.ini"));
+
+    fs::remove_all(testGameRoot);
+    std::cout << "[TEST] InterpolationManager 60 FPS Patch Management: PASSED\n";
 
     std::cout << "\n========================================\n";
     std::cout << "ALL TBOI: LAUNCHER CORE UNIT TESTS PASSED!\n";

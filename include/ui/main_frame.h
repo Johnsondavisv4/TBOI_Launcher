@@ -45,6 +45,7 @@ private:
     void OnVersionSelected(wxCommandEvent& event);
     void OnStealthCheckboxToggled(wxCommandEvent& event);
     void OnChangeOptionsClicked(wxCommandEvent& event);
+    void OnInterpolationClicked(wxCommandEvent& event);
     void OnOpenModManagerClicked(wxCommandEvent& event);
     void OnCheckLogsClicked(wxCommandEvent& event);
     void OnGameCompleted(DWORD exitCode, bool isStealth);
@@ -70,6 +71,7 @@ private:
     wxButton* m_btnModManager = nullptr;
     wxButton* m_btnCheckLogs = nullptr;
     wxButton* m_btnChangeOptions = nullptr;
+    wxButton* m_btnInterpolation = nullptr;
     wxButton* m_btnPlay = nullptr;
 
     ModManagerFrame* m_modManagerFrame = nullptr;

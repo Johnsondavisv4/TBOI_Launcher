@@ -25,6 +25,7 @@ public:
     static std::filesystem::path FindRedirectDllPath();
     static std::filesystem::path FindDefaultTemplateIniPath();
     static std::filesystem::path FindDefaultDataTemplateDir();
+    static std::filesystem::path FindInterpolationPatchDir();
 
 private:
     std::shared_ptr<OptionsManager> m_optionsMgr;

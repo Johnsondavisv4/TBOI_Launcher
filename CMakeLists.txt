@@ -102,6 +102,9 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/patch"
         "${CMAKE_BINARY_DIR}/$<CONFIG>/launcher-data-build/patch"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/interpolation_patch"
+        "${CMAKE_BINARY_DIR}/$<CONFIG>/launcher-data-build/interpolation_patch"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_RUNTIME_DLLS:TBOI_LauncherApp>
         "${CMAKE_BINARY_DIR}/$<CONFIG>/launcher-data-build/"
@@ -161,4 +164,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/patch"
         "$<TARGET_FILE_DIR:TBOI_Launcher_Tests>/patch"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/interpolation_patch"
+        "$<TARGET_FILE_DIR:TBOI_Launcher_Tests>/interpolation_patch"
 )

@@ -203,6 +203,41 @@ fs::path LauncherApp::FindDefaultDataTemplateDir() {
     return "";
 }
 
+fs::path LauncherApp::FindInterpolationPatchDir() {
+    wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
+    fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
+
+    // 1. Next to executable
+    if (fs::exists(exeDir / "interpolation_patch") && fs::is_directory(exeDir / "interpolation_patch")) {
+        return exeDir / "interpolation_patch";
+    }
+
+    // 2. In launcher-data subfolder (from data.bin extraction)
+    if (fs::exists(exeDir / "launcher-data" / "interpolation_patch") && fs::is_directory(exeDir / "launcher-data" / "interpolation_patch")) {
+        return exeDir / "launcher-data" / "interpolation_patch";
+    }
+
+    // 3. In launcher-data-build subfolder (during build/dev)
+    if (fs::exists(exeDir / "launcher-data-build" / "interpolation_patch") && fs::is_directory(exeDir / "launcher-data-build" / "interpolation_patch")) {
+        return exeDir / "launcher-data-build" / "interpolation_patch";
+    }
+
+    // 4. Current working directory
+    if (fs::exists("interpolation_patch") && fs::is_directory("interpolation_patch")) {
+        return "interpolation_patch";
+    }
+
+    // 5. Parent directory (for dev / build folders)
+    if (fs::exists(exeDir.parent_path() / "interpolation_patch") && fs::is_directory(exeDir.parent_path() / "interpolation_patch")) {
+        return exeDir.parent_path() / "interpolation_patch";
+    }
+    if (fs::exists(exeDir.parent_path().parent_path() / "interpolation_patch") && fs::is_directory(exeDir.parent_path().parent_path() / "interpolation_patch")) {
+        return exeDir.parent_path().parent_path() / "interpolation_patch";
+    }
+
+    return "interpolation_patch";
+}
+
 bool LauncherApp::OnInit() {
     wxSystemOptions::SetOption("msw.no-manifest-check", 1);
 

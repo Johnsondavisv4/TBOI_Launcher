@@ -3,6 +3,7 @@
 #include "ui/options_dialog.h"
 #include "ui/checklogs_dialog.h"
 #include "ui/mod_update_dialog.h"
+#include "ui/interpolation_dialog.h"
 #include "core/game_runner.h"
 #include "core/process_injector.h"
 #include "steam_api.h"
@@ -27,7 +28,8 @@ enum {
     ID_CHK_STEALTH,
     ID_BTN_MOD_MANAGER,
     ID_BTN_CHECK_LOGS,
-    ID_BTN_CHANGE_OPTIONS
+    ID_BTN_CHANGE_OPTIONS,
+    ID_BTN_INTERPOLATION
 };
 
 wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
@@ -36,6 +38,7 @@ wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
     EVT_CHOICE(ID_CHOICE_VERSION, MainFrame::OnVersionSelected)
     EVT_CHECKBOX(ID_CHK_STEALTH, MainFrame::OnStealthCheckboxToggled)
     EVT_BUTTON(ID_BTN_CHANGE_OPTIONS, MainFrame::OnChangeOptionsClicked)
+    EVT_BUTTON(ID_BTN_INTERPOLATION, MainFrame::OnInterpolationClicked)
     EVT_BUTTON(ID_BTN_MOD_MANAGER, MainFrame::OnOpenModManagerClicked)
     EVT_BUTTON(ID_BTN_CHECK_LOGS, MainFrame::OnCheckLogsClicked)
 wxEND_EVENT_TABLE()
@@ -295,7 +298,9 @@ void MainFrame::AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox)
     auto* optSizer = new wxStaticBoxSizer(optBox, wxVERTICAL);
 
     m_btnChangeOptions = new wxButton(optBox, ID_BTN_CHANGE_OPTIONS, "Change Game Options");
+    m_btnInterpolation = new wxButton(optBox, ID_BTN_INTERPOLATION, "60 FPS Patch (Experimental)");
     optSizer->Add(m_btnChangeOptions, 0, wxEXPAND | wxALL, 3);
+    optSizer->Add(m_btnInterpolation, 0, wxEXPAND | wxALL, 3);
     gridSizer->Add(optSizer, 1, wxEXPAND);
 
     sizer->Add(gridSizer, 1, wxEXPAND | wxALL, 4);
@@ -306,6 +311,17 @@ void MainFrame::OnChangeOptionsClicked(wxCommandEvent&) {
     if (dlg.ShowModal() == wxID_OK) {
         Log("Game options updated and saved to options.ini");
     }
+}
+
+void MainFrame::OnInterpolationClicked(wxCommandEvent&) {
+    std::string currentVer = GetSelectedVersionId();
+    wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
+    fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
+    fs::path versionsRootDir = m_isaacInfo.valid ? (m_isaacInfo.rootDirectory / "versions") : (exeDir / "versions");
+    fs::path patchDir = LauncherApp::FindInterpolationPatchDir();
+
+    InterpolationDialog dlg(this, currentVer, m_isaacInfo, versionsRootDir, patchDir);
+    dlg.ShowModal();
 }
 
 void MainFrame::OnOpenModManagerClicked(wxCommandEvent&) {
