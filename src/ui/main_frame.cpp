@@ -29,7 +29,9 @@ enum {
     ID_BTN_MOD_MANAGER,
     ID_BTN_CHECK_LOGS,
     ID_BTN_CHANGE_OPTIONS,
-    ID_BTN_INTERPOLATION
+    ID_BTN_INTERPOLATION,
+    ID_BTN_COPY_STEAM_NORMAL,
+    ID_BTN_COPY_STEAM_STEALTH
 };
 
 wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
@@ -41,6 +43,8 @@ wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
     EVT_BUTTON(ID_BTN_INTERPOLATION, MainFrame::OnInterpolationClicked)
     EVT_BUTTON(ID_BTN_MOD_MANAGER, MainFrame::OnOpenModManagerClicked)
     EVT_BUTTON(ID_BTN_CHECK_LOGS, MainFrame::OnCheckLogsClicked)
+    EVT_BUTTON(ID_BTN_COPY_STEAM_NORMAL, MainFrame::OnCopySteamNormalClicked)
+    EVT_BUTTON(ID_BTN_COPY_STEAM_STEALTH, MainFrame::OnCopySteamStealthClicked)
 wxEND_EVENT_TABLE()
 
 MainFrame::MainFrame(
@@ -138,24 +142,37 @@ void MainFrame::BuildUI() {
     auto* mainSizer = new wxBoxSizer(wxVERTICAL);
 
     // 1. Top Log Window
-    m_logWindow = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1, 125),
+    m_logWindow = new wxTextCtrl(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxSize(-1, 115),
                                  wxTE_READONLY | wxTE_MULTILINE | wxTE_RICH);
     m_logWindow->SetBackgroundColour(*wxWHITE);
     mainSizer->Add(m_logWindow, 1, wxEXPAND | wxALL, 6);
 
-    // 2. Launcher Configuration Box
-    m_configBox = new wxStaticBox(this, wxID_ANY, "Launcher configuration");
-    auto* configSizer = new wxStaticBoxSizer(m_configBox, wxVERTICAL);
-    AddLauncherConfigurationOptions(configSizer, m_configBox);
-    mainSizer->Add(configSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+    // 2. Configuration Notebook (Tabs: Launcher Configuration & Steam Launch Options)
+    m_configNotebook = new wxNotebook(this, wxID_ANY);
 
-    // 3. Game Configuration Box
-    m_gameConfigBox = new wxStaticBox(this, wxID_ANY, "Game configuration");
+    // Tab 1: Launcher Configuration Panel (Includes Launcher Options + Game Configuration)
+    auto* tabLauncher = new wxPanel(m_configNotebook, wxID_ANY);
+    auto* tabLauncherSizer = new wxBoxSizer(wxVERTICAL);
+    AddLauncherConfigurationOptions(tabLauncherSizer, tabLauncher);
+
+    m_gameConfigBox = new wxStaticBox(tabLauncher, wxID_ANY, "Game configuration");
     auto* gameConfigSizer = new wxStaticBoxSizer(m_gameConfigBox, wxVERTICAL);
     AddGameConfigurationOptions(gameConfigSizer, m_gameConfigBox);
-    mainSizer->Add(gameConfigSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+    tabLauncherSizer->Add(gameConfigSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
 
-    // 4. Launch Button (Big bottom button matching REPENTOGON)
+    tabLauncher->SetSizer(tabLauncherSizer);
+    m_configNotebook->AddPage(tabLauncher, "Launcher configuration", true);
+
+    // Tab 2: Steam Launch Options Panel
+    auto* tabSteam = new wxPanel(m_configNotebook, wxID_ANY);
+    auto* tabSteamSizer = new wxBoxSizer(wxVERTICAL);
+    AddSteamConfigurationOptions(tabSteamSizer, tabSteam);
+    tabSteam->SetSizer(tabSteamSizer);
+    m_configNotebook->AddPage(tabSteam, "Steam Launch Options", false);
+
+    mainSizer->Add(m_configNotebook, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+
+    // 3. Launch Button (Big bottom button matching REPENTOGON)
     m_btnPlay = new wxButton(this, ID_BTN_PLAY, m_isSteamActive ? "Launch game" : "Waiting for Steam client...", wxDefaultPosition, wxSize(-1, 48));
     m_btnPlay->SetFont(m_btnPlay->GetFont().Bold().Larger());
     m_btnPlay->Enable(m_isSteamActive && m_isaacInfo.valid);
@@ -277,6 +294,68 @@ void MainFrame::AddLauncherConfigurationOptions(wxSizer* sizer, wxWindow* parent
     sizer->Add(m_chkStealthMode, 0, wxALL, 6);
 }
 
+void MainFrame::AddSteamConfigurationOptions(wxSizer* sizer, wxWindow* parent) {
+    wxString launcherExe = wxStandardPaths::Get().GetExecutablePath();
+    wxString normalCmd = wxString::Format("\"%s\" --isaac=%%command%%", launcherExe);
+    wxString stealthCmd = wxString::Format("\"%s\" --isaac=%%command%% --stealth", launcherExe);
+
+    auto* descText = new wxStaticText(parent, wxID_ANY,
+        "Copy and paste either command into Steam -> Isaac Properties -> Launch Options:");
+    descText->SetFont(descText->GetFont().Bold());
+    sizer->Add(descText, 0, wxTOP | wxLEFT | wxRIGHT, 8);
+
+    // Row 1: Standard Launcher Option
+    auto* normalBox = new wxStaticBox(parent, wxID_ANY, "Standard Mode (Opens Launcher GUI)");
+    auto* normalSizer = new wxStaticBoxSizer(normalBox, wxHORIZONTAL);
+
+    m_steamNormalText = new wxTextCtrl(normalBox, wxID_ANY, normalCmd, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
+    m_steamNormalText->SetBackgroundColour(*wxWHITE);
+    normalSizer->Add(m_steamNormalText, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+
+    m_btnCopyNormal = new wxButton(normalBox, ID_BTN_COPY_STEAM_NORMAL, "Copy");
+    m_btnCopyNormal->SetToolTip("Copy standard launch command to clipboard");
+    normalSizer->Add(m_btnCopyNormal, 0, wxALIGN_CENTER_VERTICAL);
+
+    sizer->Add(normalSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 6);
+
+    // Row 2: Stealth Mode Option
+    auto* stealthBox = new wxStaticBox(parent, wxID_ANY, "Stealth Mode (Direct launch with crash monitoring)");
+    auto* stealthSizer = new wxStaticBoxSizer(stealthBox, wxHORIZONTAL);
+
+    m_steamStealthText = new wxTextCtrl(stealthBox, wxID_ANY, stealthCmd, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
+    m_steamStealthText->SetBackgroundColour(*wxWHITE);
+    stealthSizer->Add(m_steamStealthText, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 4);
+
+    m_btnCopyStealth = new wxButton(stealthBox, ID_BTN_COPY_STEAM_STEALTH, "Copy");
+    m_btnCopyStealth->SetToolTip("Copy stealth launch command to clipboard");
+    stealthSizer->Add(m_btnCopyStealth, 0, wxALIGN_CENTER_VERTICAL);
+
+    sizer->Add(stealthSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP | wxBOTTOM, 6);
+}
+
+void MainFrame::OnCopySteamNormalClicked(wxCommandEvent&) {
+    wxString launcherExe = wxStandardPaths::Get().GetExecutablePath();
+    wxString cmd = wxString::Format("\"%s\" --isaac=%%command%%", launcherExe);
+    if (wxTheClipboard->Open()) {
+        wxTheClipboard->SetData(new wxTextDataObject(cmd));
+        wxTheClipboard->Close();
+        SetStatusText("Steam launch command copied to clipboard!", 0);
+        Log("Copied to clipboard: " + cmd);
+    }
+}
+
+void MainFrame::OnCopySteamStealthClicked(wxCommandEvent&) {
+    wxString launcherExe = wxStandardPaths::Get().GetExecutablePath();
+    wxString cmd = wxString::Format("\"%s\" --isaac=%%command%% --stealth", launcherExe);
+    if (wxTheClipboard->Open()) {
+        wxTheClipboard->SetData(new wxTextDataObject(cmd));
+        wxTheClipboard->Close();
+        SetStatusText("Steam stealth command copied to clipboard!", 0);
+        Log("Copied to clipboard: " + cmd);
+    }
+}
+
+
 void MainFrame::AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox) {
     auto* gridSizer = new wxFlexGridSizer(1, 2, 6, 6);
     gridSizer->AddGrowableCol(0, 1);
@@ -357,7 +436,7 @@ void MainFrame::OnPlayClicked(wxCommandEvent&) {
 }
 
 void MainFrame::EnableInterface(bool enable) {
-    if (m_configBox) m_configBox->Enable(enable);
+    if (m_configNotebook) m_configNotebook->Enable(enable);
     if (m_gameConfigBox) m_gameConfigBox->Enable(enable);
     if (m_btnPlay) {
         m_btnPlay->Enable(enable && m_isaacInfo.valid);

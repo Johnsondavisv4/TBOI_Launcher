@@ -50,9 +50,6 @@ fs::path LauncherApp::FindSchemaPath() {
     if (fs::exists(exeDir.parent_path().parent_path() / "options_schema.json")) {
         return exeDir.parent_path().parent_path() / "options_schema.json";
     }
-    if (fs::exists(exeDir.parent_path().parent_path().parent_path() / "options_schema.json")) {
-        return exeDir.parent_path().parent_path().parent_path() / "options_schema.json";
-    }
 
     return "options_schema.json";
 }
@@ -61,38 +58,32 @@ fs::path LauncherApp::FindPatchDir() {
     wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
     fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
 
-    // 1. Hot-Override next to executable
-    if (fs::exists(exeDir / "patch")) {
+    // 1. In patch subfolder next to executable
+    if (fs::exists(exeDir / "patch") && fs::is_directory(exeDir / "patch")) {
         return exeDir / "patch";
     }
 
     // 2. In launcher-data subfolder (from data.bin extraction)
-    if (fs::exists(exeDir / "launcher-data" / "patch")) {
+    if (fs::exists(exeDir / "launcher-data" / "patch") && fs::is_directory(exeDir / "launcher-data" / "patch")) {
         return exeDir / "launcher-data" / "patch";
     }
 
     // 3. In launcher-data-build subfolder (during build/dev)
-    if (fs::exists(exeDir / "launcher-data-build" / "patch")) {
+    if (fs::exists(exeDir / "launcher-data-build" / "patch") && fs::is_directory(exeDir / "launcher-data-build" / "patch")) {
         return exeDir / "launcher-data-build" / "patch";
     }
 
     // 4. Current working directory
-    if (fs::exists("patch")) {
+    if (fs::exists("patch") && fs::is_directory("patch")) {
         return "patch";
-    }
-    if (fs::exists("launcher-data/patch")) {
-        return "launcher-data/patch";
     }
 
     // 5. Parent directory (for dev / build folders)
-    if (fs::exists(exeDir.parent_path() / "patch")) {
+    if (fs::exists(exeDir.parent_path() / "patch") && fs::is_directory(exeDir.parent_path() / "patch")) {
         return exeDir.parent_path() / "patch";
     }
-    if (fs::exists(exeDir.parent_path().parent_path() / "patch")) {
+    if (fs::exists(exeDir.parent_path().parent_path() / "patch") && fs::is_directory(exeDir.parent_path().parent_path() / "patch")) {
         return exeDir.parent_path().parent_path() / "patch";
-    }
-    if (fs::exists(exeDir.parent_path().parent_path().parent_path() / "patch")) {
-        return exeDir.parent_path().parent_path().parent_path() / "patch";
     }
 
     return "patch";
@@ -121,9 +112,6 @@ fs::path LauncherApp::FindRedirectDllPath() {
     if (fs::exists("tboi_redirect.dll")) {
         return "tboi_redirect.dll";
     }
-    if (fs::exists("launcher-data/tboi_redirect.dll")) {
-        return "launcher-data/tboi_redirect.dll";
-    }
 
     // 5. Parent directory (for dev / build folders)
     if (fs::exists(exeDir.parent_path() / "tboi_redirect.dll")) {
@@ -131,9 +119,6 @@ fs::path LauncherApp::FindRedirectDllPath() {
     }
     if (fs::exists(exeDir.parent_path().parent_path() / "tboi_redirect.dll")) {
         return exeDir.parent_path().parent_path() / "tboi_redirect.dll";
-    }
-    if (fs::exists(exeDir.parent_path().parent_path().parent_path() / "tboi_redirect.dll")) {
-        return exeDir.parent_path().parent_path().parent_path() / "tboi_redirect.dll";
     }
 
     return "tboi_redirect.dll";
@@ -143,56 +128,50 @@ fs::path LauncherApp::FindDefaultTemplateIniPath() {
     wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
     fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
 
+    const std::vector<std::string> candidateNames = { "option.ini", "options.ini" };
+
     // 1. Next to executable
-    if (fs::exists(exeDir / "option.ini")) return exeDir / "option.ini";
-    if (fs::exists(exeDir / "options.ini")) return exeDir / "options.ini";
+    for (const auto& name : candidateNames) {
+        if (fs::exists(exeDir / name)) {
+            return exeDir / name;
+        }
+    }
 
-    // 2. In launcher-data subfolder (from data.bin extraction)
-    if (fs::exists(exeDir / "launcher-data" / "option.ini")) return exeDir / "launcher-data" / "option.ini";
-    if (fs::exists(exeDir / "launcher-data" / "options.ini")) return exeDir / "launcher-data" / "options.ini";
+    // 2. Current working directory
+    for (const auto& name : candidateNames) {
+        if (fs::exists(name)) {
+            return name;
+        }
+    }
 
-    // 3. In launcher-data-build subfolder (during build/dev)
-    if (fs::exists(exeDir / "launcher-data-build" / "option.ini")) return exeDir / "launcher-data-build" / "option.ini";
-    if (fs::exists(exeDir / "launcher-data-build" / "options.ini")) return exeDir / "launcher-data-build" / "options.ini";
+    // 3. Parent directory (for dev/build folders)
+    for (const auto& name : candidateNames) {
+        if (fs::exists(exeDir.parent_path() / name)) {
+            return exeDir.parent_path() / name;
+        }
+        if (fs::exists(exeDir.parent_path().parent_path() / name)) {
+            return exeDir.parent_path().parent_path() / name;
+        }
+    }
 
-    // 4. Current working directory
-    if (fs::exists("option.ini")) return "option.ini";
-    if (fs::exists("options.ini")) return "options.ini";
-
-    // 5. Parent directory (for dev / build folders)
-    if (fs::exists(exeDir.parent_path() / "option.ini")) return exeDir.parent_path() / "option.ini";
-    if (fs::exists(exeDir.parent_path() / "options.ini")) return exeDir.parent_path() / "options.ini";
-    if (fs::exists(exeDir.parent_path().parent_path() / "option.ini")) return exeDir.parent_path().parent_path() / "option.ini";
-    if (fs::exists(exeDir.parent_path().parent_path() / "options.ini")) return exeDir.parent_path().parent_path() / "options.ini";
-
-    return "";
+    return {};
 }
 
 fs::path LauncherApp::FindDefaultDataTemplateDir() {
     wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
     fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
 
-    // 1. Next to executable
+    // 1. data/ subfolder next to executable
     if (fs::exists(exeDir / "data") && fs::is_directory(exeDir / "data")) {
         return exeDir / "data";
     }
 
-    // 2. In launcher-data subfolder (from data.bin extraction)
-    if (fs::exists(exeDir / "launcher-data" / "data") && fs::is_directory(exeDir / "launcher-data" / "data")) {
-        return exeDir / "launcher-data" / "data";
-    }
-
-    // 3. In launcher-data-build subfolder (during build/dev)
-    if (fs::exists(exeDir / "launcher-data-build" / "data") && fs::is_directory(exeDir / "launcher-data-build" / "data")) {
-        return exeDir / "launcher-data-build" / "data";
-    }
-
-    // 4. Current working directory
+    // 2. data/ in current working directory
     if (fs::exists("data") && fs::is_directory("data")) {
         return "data";
     }
 
-    // 5. Parent directory (for dev / build folders)
+    // 3. Parent directory (for dev/build folders)
     if (fs::exists(exeDir.parent_path() / "data") && fs::is_directory(exeDir.parent_path() / "data")) {
         return exeDir.parent_path() / "data";
     }
@@ -200,14 +179,14 @@ fs::path LauncherApp::FindDefaultDataTemplateDir() {
         return exeDir.parent_path().parent_path() / "data";
     }
 
-    return "";
+    return {};
 }
 
 fs::path LauncherApp::FindInterpolationPatchDir() {
     wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
     fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
 
-    // 1. Next to executable
+    // 1. In interpolation_patch subfolder next to executable
     if (fs::exists(exeDir / "interpolation_patch") && fs::is_directory(exeDir / "interpolation_patch")) {
         return exeDir / "interpolation_patch";
     }
@@ -238,11 +217,80 @@ fs::path LauncherApp::FindInterpolationPatchDir() {
     return "interpolation_patch";
 }
 
+void LauncherApp::OnInitCmdLine(wxCmdLineParser& parser) {
+    parser.SetSwitchChars("-/");
+    parser.EnableLongOptions(true);
+
+    parser.AddLongOption("isaac", "Path to Isaac executable (e.g. for Steam: --isaac=%command%)", wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL);
+    parser.AddLongSwitch("stealth", "Stealth mode: launches Isaac directly and keeps the launcher in background for crash monitoring");
+    parser.AddLongSwitch("stealth-mode", "Stealth mode (REPENTOGON compatibility alias)");
+    parser.AddLongSwitch("steam", "Launched via Steam flag");
+    parser.AddOption("h", "help", "Show help message", wxCMD_LINE_VAL_NONE, wxCMD_LINE_OPTION_HELP);
+    parser.AddOption("v", "verbose", "Generate verbose log messages", wxCMD_LINE_VAL_NONE, 0x0);
+    parser.AddParam("extra", wxCMD_LINE_VAL_STRING, wxCMD_LINE_PARAM_OPTIONAL | wxCMD_LINE_PARAM_MULTIPLE);
+}
+
+bool LauncherApp::OnCmdLineParsed(wxCmdLineParser& parser) {
+    wxString isaacCliPath;
+    if (parser.Found("isaac", &isaacCliPath) && !isaacCliPath.empty()) {
+        // Strip surrounding quotes if present
+        if (isaacCliPath.StartsWith("\"") && isaacCliPath.EndsWith("\"") && isaacCliPath.length() > 1) {
+            isaacCliPath = isaacCliPath.Mid(1, isaacCliPath.length() - 2);
+        }
+        m_cliIsaacPath = isaacCliPath.ToStdString();
+    }
+
+    if (parser.Found("stealth") || parser.Found("stealth-mode")) {
+        m_cliStealthMode = true;
+    }
+
+    return true;
+}
+
+bool LauncherApp::OnCmdLineHelp(wxCmdLineParser& parser) {
+    parser.Usage();
+    return false;
+}
+
+bool LauncherApp::OnCmdLineError(wxCmdLineParser& parser) {
+    // If unknown extra options are passed by Steam, don't abort or show popup dialogs
+    return true;
+}
+
 bool LauncherApp::OnInit() {
     wxSystemOptions::SetOption("msw.no-manifest-check", 1);
 
     if (!wxApp::OnInit()) {
         return false;
+    }
+
+    // Direct raw command line fallback in case Steam passes custom quotes or formatting
+    if (m_cliIsaacPath.empty()) {
+        std::wstring cmdLine = GetCommandLineW();
+        size_t pos = cmdLine.find(L"--isaac=");
+        if (pos != std::wstring::npos) {
+            std::wstring pathPart = cmdLine.substr(pos + 8);
+            if (!pathPart.empty() && pathPart.front() == L'"') {
+                size_t endQuote = pathPart.find(L'"', 1);
+                if (endQuote != std::wstring::npos) {
+                    m_cliIsaacPath = wxString(pathPart.substr(1, endQuote - 1)).ToStdString();
+                }
+            } else {
+                size_t space = pathPart.find(L' ');
+                if (space != std::wstring::npos) {
+                    m_cliIsaacPath = wxString(pathPart.substr(0, space)).ToStdString();
+                } else {
+                    m_cliIsaacPath = wxString(pathPart).ToStdString();
+                }
+            }
+        }
+    }
+
+    if (!m_cliStealthMode) {
+        std::wstring cmdLine = GetCommandLineW();
+        if (cmdLine.find(L"--stealth") != std::wstring::npos || cmdLine.find(L"-stealth") != std::wstring::npos) {
+            m_cliStealthMode = true;
+        }
     }
 
     // 0. Initialize Steamworks API (identifies process as App ID 250900 to Steam Client)
@@ -264,31 +312,15 @@ bool LauncherApp::OnInit() {
     m_launcherConfig = std::make_shared<LauncherConfig>();
     m_launcherConfig->Load(LauncherConfig::GetDefaultConfigPath());
 
-    // 2. Parse Command-line arguments (from Steam: --isaac=%command% --stealth / --stealth-mode)
-    wxCmdLineParser parser(argc, argv);
-    parser.AddLongOption("isaac", "Path to Isaac executable (e.g. for Steam: --isaac=%command%)", wxCMD_LINE_VAL_STRING);
-    parser.AddLongSwitch("stealth", "Stealth mode: launches Isaac directly and keeps the launcher in background for crash monitoring");
-    parser.AddLongSwitch("stealth-mode", "Stealth mode (REPENTOGON compatibility alias)");
-    parser.AddLongSwitch("steam", "Launched via Steam flag");
-
-    // Don't fail if unknown flags are passed
-    parser.Parse(false);
-
-    wxString isaacCliPath;
-    if (parser.Found("isaac", &isaacCliPath) && !isaacCliPath.empty()) {
-        // Strip surrounding quotes if present
-        if (isaacCliPath.StartsWith("\"") && isaacCliPath.EndsWith("\"") && isaacCliPath.length() > 1) {
-            isaacCliPath = isaacCliPath.Mid(1, isaacCliPath.length() - 2);
-        }
-        m_cliIsaacPath = isaacCliPath.ToStdString();
-    }
-
     bool isDeckOrBigPicture = false;
     if (isSteamActive && SteamUtils()) {
         isDeckOrBigPicture = SteamUtils()->IsSteamInBigPictureMode() || SteamUtils()->IsSteamRunningOnSteamDeck();
     }
 
-    m_cliStealthMode = parser.Found("stealth") || parser.Found("stealth-mode") || isDeckOrBigPicture;
+    if (isDeckOrBigPicture) {
+        m_cliStealthMode = true;
+    }
+
     bool effectiveStealth = m_cliStealthMode || m_launcherConfig->GetStealthMode();
 
     // 3. Detect Isaac (Priority: CLI/Steam -> Previously saved config -> Auto-detection in Steam Library)
@@ -378,7 +410,7 @@ bool LauncherApp::OnInit() {
         }
     }
 
-    // 7. Handle Stealth Mode Launch vs Normal UI Launch (REPENTOGON style)
+    // 8. Handle Stealth Mode Launch vs Normal UI Launch (REPENTOGON style)
     if (isSteamActive && m_cliStealthMode) {
         // Direct launch from Steam / CLI / BigPicture (skip countdown)
         frame->Show(false);

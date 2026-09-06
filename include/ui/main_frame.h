@@ -9,6 +9,7 @@
 
 #include <wx/wx.h>
 #include <wx/choice.h>
+#include <wx/notebook.h>
 #include <memory>
 #include <thread>
 #include <atomic>
@@ -36,6 +37,7 @@ public:
 private:
     void BuildUI();
     void AddLauncherConfigurationOptions(wxSizer* sizer, wxWindow* parentBox);
+    void AddSteamConfigurationOptions(wxSizer* sizer, wxWindow* parent);
     void AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox);
     void RefreshVersionChoices();
     std::string GetSelectedVersionId() const;
@@ -44,6 +46,8 @@ private:
     void OnBrowseExeClicked(wxCommandEvent& event);
     void OnVersionSelected(wxCommandEvent& event);
     void OnStealthCheckboxToggled(wxCommandEvent& event);
+    void OnCopySteamNormalClicked(wxCommandEvent& event);
+    void OnCopySteamStealthClicked(wxCommandEvent& event);
     void OnChangeOptionsClicked(wxCommandEvent& event);
     void OnInterpolationClicked(wxCommandEvent& event);
     void OnOpenModManagerClicked(wxCommandEvent& event);
@@ -62,12 +66,16 @@ private:
 
     // UI Widgets
     wxTextCtrl* m_logWindow = nullptr;
-    wxStaticBox* m_configBox = nullptr;
+    wxNotebook* m_configNotebook = nullptr;
     wxStaticBox* m_gameConfigBox = nullptr;
     wxTextCtrl* m_isaacPathText = nullptr;
     wxButton* m_btnBrowse = nullptr;
     wxChoice* m_versionChoice = nullptr;
     wxCheckBox* m_chkStealthMode = nullptr;
+    wxTextCtrl* m_steamNormalText = nullptr;
+    wxTextCtrl* m_steamStealthText = nullptr;
+    wxButton* m_btnCopyNormal = nullptr;
+    wxButton* m_btnCopyStealth = nullptr;
     wxButton* m_btnModManager = nullptr;
     wxButton* m_btnCheckLogs = nullptr;
     wxButton* m_btnChangeOptions = nullptr;

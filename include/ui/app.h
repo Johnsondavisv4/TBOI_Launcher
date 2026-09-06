@@ -7,6 +7,7 @@
 #include "core/launcher_config.h"
 
 #include <wx/wx.h>
+#include <wx/cmdline.h>
 #include <memory>
 #include <string>
 
@@ -19,6 +20,11 @@ public:
 
     bool OnInit() override;
     int OnExit() override;
+
+    void OnInitCmdLine(wxCmdLineParser& parser) override;
+    bool OnCmdLineParsed(wxCmdLineParser& parser) override;
+    bool OnCmdLineHelp(wxCmdLineParser& parser) override;
+    bool OnCmdLineError(wxCmdLineParser& parser) override;
 
     static std::filesystem::path FindSchemaPath();
     static std::filesystem::path FindPatchDir();
