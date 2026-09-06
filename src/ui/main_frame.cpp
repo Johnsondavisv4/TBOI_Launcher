@@ -473,7 +473,7 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
     std::string verId = GetSelectedVersionId();
 
     // Check and download Steam Workshop mod updates before launching
-    if (m_isSteamActive && m_launcherConfig && !m_launcherConfig->GetSkipModUpdates() && !isStealth) {
+    if (m_isSteamActive && m_launcherConfig && !m_launcherConfig->GetSkipModUpdates()) {
         if (m_isaacInfo.valid && !m_isaacInfo.modsDirectory.empty()) {
             Log("Checking for mod updates in Steam Workshop...");
             ModUpdateDialog updateDlg(this, m_isaacInfo.modsDirectory, 0, m_launcherConfig);
