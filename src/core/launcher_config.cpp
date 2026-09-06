@@ -61,6 +61,8 @@ bool LauncherConfig::Load(const fs::path& configPath) {
             m_skipModUpdates = (val == "1" || val == "true" || val == "True");
         } else if (key == "IsaacPath" || key == "isaac_path" || key == "custom_isaac_path") {
             m_customIsaacPath = val;
+        } else if (key == "SelectedVersion" || key == "selected_version" || key == "Version" || key == "version") {
+            m_selectedVersion = val;
         }
     }
 
@@ -80,6 +82,9 @@ bool LauncherConfig::Save(const fs::path& configPath) const {
     ofs << "SkipModUpdates=" << (m_skipModUpdates ? "1" : "0") << "\n";
     if (!m_customIsaacPath.empty()) {
         ofs << "IsaacPath=" << m_customIsaacPath << "\n";
+    }
+    if (!m_selectedVersion.empty()) {
+        ofs << "SelectedVersion=" << m_selectedVersion << "\n";
     }
 
     return true;

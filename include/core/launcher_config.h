@@ -27,11 +27,15 @@ public:
     const std::string& GetCustomIsaacPath() const { return m_customIsaacPath; }
     void SetCustomIsaacPath(const std::string& path) { m_customIsaacPath = path; }
 
+    const std::string& GetSelectedVersion() const { return m_selectedVersion; }
+    void SetSelectedVersion(const std::string& ver) { m_selectedVersion = ver; }
+
 private:
     bool m_stealthMode = false;
     bool m_autoLaunch = false;
     bool m_skipModUpdates = false;
     std::string m_customIsaacPath;
+    std::string m_selectedVersion = "vanilla";
 };
 
 } // namespace TBOI

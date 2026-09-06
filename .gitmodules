@@ -7,3 +7,9 @@
 [submodule "deps/wxWidgets"]
 	path = deps/wxWidgets
 	url = https://github.com/wxWidgets/wxWidgets.git
+[submodule "deps/bzip2"]
+	path = deps/bzip2
+	url = https://gitlab.com/bzip2/bzip2.git
+[submodule "deps/minhook"]
+	path = deps/minhook
+	url = https://github.com/TsudaKageyu/minhook.git

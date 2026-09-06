@@ -3,10 +3,12 @@
 #include "core/isaac_detector.h"
 #include "core/options_manager.h"
 #include "core/mod_manager.h"
+#include "core/version_manager.h"
 #include "core/launcher_config.h"
 #include "ui/mod_manager_frame.h"
 
 #include <wx/wx.h>
+#include <wx/choice.h>
 #include <memory>
 #include <thread>
 #include <atomic>
@@ -20,6 +22,7 @@ public:
         const IsaacInstallationInfo& info,
         std::shared_ptr<OptionsManager> optionsMgr,
         std::shared_ptr<ModManager> modMgr,
+        std::shared_ptr<VersionManager> versionMgr,
         std::shared_ptr<LauncherConfig> launcherConfig,
         bool isSteamActive = true
     );
@@ -34,9 +37,12 @@ private:
     void BuildUI();
     void AddLauncherConfigurationOptions(wxSizer* sizer, wxWindow* parentBox);
     void AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox);
+    void RefreshVersionChoices();
+    std::string GetSelectedVersionId() const;
 
     void OnPlayClicked(wxCommandEvent& event);
     void OnBrowseExeClicked(wxCommandEvent& event);
+    void OnVersionSelected(wxCommandEvent& event);
     void OnStealthCheckboxToggled(wxCommandEvent& event);
     void OnChangeOptionsClicked(wxCommandEvent& event);
     void OnOpenModManagerClicked(wxCommandEvent& event);
@@ -50,6 +56,7 @@ private:
     IsaacInstallationInfo m_isaacInfo;
     std::shared_ptr<OptionsManager> m_optionsMgr;
     std::shared_ptr<ModManager> m_modMgr;
+    std::shared_ptr<VersionManager> m_versionMgr;
     std::shared_ptr<LauncherConfig> m_launcherConfig;
 
     // UI Widgets
@@ -58,6 +65,7 @@ private:
     wxStaticBox* m_gameConfigBox = nullptr;
     wxTextCtrl* m_isaacPathText = nullptr;
     wxButton* m_btnBrowse = nullptr;
+    wxChoice* m_versionChoice = nullptr;
     wxCheckBox* m_chkStealthMode = nullptr;
     wxButton* m_btnModManager = nullptr;
     wxButton* m_btnCheckLogs = nullptr;

@@ -50,6 +50,7 @@ public:
     std::vector<OptionDefinition> GetOptionsForVersion(const std::string& version) const;
     std::set<std::string> GetUnsupportedKeysForVersion(const std::string& version) const;
 
+    static std::string NormalizeVersion(const std::string& version);
     static std::string ResolveDynamicKey(const std::string& rawKey, const std::string& version);
     static std::string ResolveDynamicLabel(const std::string& rawLabel, const std::string& version);
     static OptionType StringToOptionType(const std::string& typeStr);

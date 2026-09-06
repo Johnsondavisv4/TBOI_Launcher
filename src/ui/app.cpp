@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 LauncherApp::LauncherApp() = default;
 LauncherApp::~LauncherApp() = default;
 
-fs::path LauncherApp::FindSchemaPath() const {
+fs::path LauncherApp::FindSchemaPath() {
     wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
     fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
 
@@ -55,6 +55,88 @@ fs::path LauncherApp::FindSchemaPath() const {
     }
 
     return "options_schema.json";
+}
+
+fs::path LauncherApp::FindPatchDir() {
+    wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
+    fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
+
+    // 1. Hot-Override next to executable
+    if (fs::exists(exeDir / "patch")) {
+        return exeDir / "patch";
+    }
+
+    // 2. In launcher-data subfolder (from data.bin extraction)
+    if (fs::exists(exeDir / "launcher-data" / "patch")) {
+        return exeDir / "launcher-data" / "patch";
+    }
+
+    // 3. In launcher-data-build subfolder (during build/dev)
+    if (fs::exists(exeDir / "launcher-data-build" / "patch")) {
+        return exeDir / "launcher-data-build" / "patch";
+    }
+
+    // 4. Current working directory
+    if (fs::exists("patch")) {
+        return "patch";
+    }
+    if (fs::exists("launcher-data/patch")) {
+        return "launcher-data/patch";
+    }
+
+    // 5. Parent directory (for dev / build folders)
+    if (fs::exists(exeDir.parent_path() / "patch")) {
+        return exeDir.parent_path() / "patch";
+    }
+    if (fs::exists(exeDir.parent_path().parent_path() / "patch")) {
+        return exeDir.parent_path().parent_path() / "patch";
+    }
+    if (fs::exists(exeDir.parent_path().parent_path().parent_path() / "patch")) {
+        return exeDir.parent_path().parent_path().parent_path() / "patch";
+    }
+
+    return "patch";
+}
+
+fs::path LauncherApp::FindRedirectDllPath() {
+    wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
+    fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
+
+    // 1. Next to executable
+    if (fs::exists(exeDir / "tboi_redirect.dll")) {
+        return exeDir / "tboi_redirect.dll";
+    }
+
+    // 2. In launcher-data subfolder (from data.bin extraction)
+    if (fs::exists(exeDir / "launcher-data" / "tboi_redirect.dll")) {
+        return exeDir / "launcher-data" / "tboi_redirect.dll";
+    }
+
+    // 3. In launcher-data-build subfolder (during build/dev)
+    if (fs::exists(exeDir / "launcher-data-build" / "tboi_redirect.dll")) {
+        return exeDir / "launcher-data-build" / "tboi_redirect.dll";
+    }
+
+    // 4. Current working directory
+    if (fs::exists("tboi_redirect.dll")) {
+        return "tboi_redirect.dll";
+    }
+    if (fs::exists("launcher-data/tboi_redirect.dll")) {
+        return "launcher-data/tboi_redirect.dll";
+    }
+
+    // 5. Parent directory (for dev / build folders)
+    if (fs::exists(exeDir.parent_path() / "tboi_redirect.dll")) {
+        return exeDir.parent_path() / "tboi_redirect.dll";
+    }
+    if (fs::exists(exeDir.parent_path().parent_path() / "tboi_redirect.dll")) {
+        return exeDir.parent_path().parent_path() / "tboi_redirect.dll";
+    }
+    if (fs::exists(exeDir.parent_path().parent_path().parent_path() / "tboi_redirect.dll")) {
+        return exeDir.parent_path().parent_path().parent_path() / "tboi_redirect.dll";
+    }
+
+    return "tboi_redirect.dll";
 }
 
 bool LauncherApp::OnInit() {
@@ -136,10 +218,22 @@ bool LauncherApp::OnInit() {
         }
     }
 
-    // 4. Initialize Options Manager
+    // 4. Initialize Version Manager
+    m_versionMgr = std::make_shared<VersionManager>();
+    fs::path patchDir = FindPatchDir();
+    wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
+    fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
+    fs::path versionsRootDir = isaacInfo.valid ? (isaacInfo.rootDirectory / "versions") : (exeDir / "versions");
+    m_versionMgr->ScanVersions(patchDir, versionsRootDir, isaacInfo);
+
+    // 5. Initialize Options Manager
     m_optionsMgr = std::make_shared<OptionsManager>();
     fs::path schemaPath = FindSchemaPath();
-    m_optionsMgr->Initialize(schemaPath, isaacInfo.valid ? isaacInfo.detectedVersion : "v1.9.7.17");
+    std::string activeVer = m_launcherConfig->GetSelectedVersion();
+    if (activeVer.empty() || activeVer == "vanilla") {
+        activeVer = isaacInfo.valid ? isaacInfo.detectedVersion : "v1.9.7.17";
+    }
+    m_optionsMgr->Initialize(schemaPath, activeVer);
 
     if (isaacInfo.valid) {
         m_optionsMgr->SetTargetIniPath(isaacInfo.optionsIniPath);
@@ -148,18 +242,19 @@ bool LauncherApp::OnInit() {
         }
     }
 
-    // 5. Initialize Mod Manager
+    // 6. Initialize Mod Manager
     m_modMgr = std::make_shared<ModManager>();
     if (isaacInfo.valid && fs::exists(isaacInfo.modsDirectory)) {
         m_modMgr->ScanMods(isaacInfo.modsDirectory);
     }
 
-    // 6. Create Main Frame
+    // 7. Create Main Frame
     auto* frame = new MainFrame(
         "TBOI: Launcher - Repentance+",
         isaacInfo,
         m_optionsMgr,
         m_modMgr,
+        m_versionMgr,
         m_launcherConfig,
         isSteamActive
     );

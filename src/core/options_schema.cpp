@@ -19,20 +19,24 @@ OptionType OptionsSchema::StringToOptionType(const std::string& typeStr) {
     return OptionType::Unknown;
 }
 
+std::string OptionsSchema::NormalizeVersion(const std::string& version) {
+    std::string cleanVersion = version;
+    size_t jPos = cleanVersion.find(".J");
+    if (jPos == std::string::npos) {
+        jPos = cleanVersion.find(".j");
+    }
+    if (jPos != std::string::npos) {
+        cleanVersion = cleanVersion.substr(0, jPos);
+    }
+    return cleanVersion;
+}
+
 std::string OptionsSchema::ResolveDynamicKey(const std::string& rawKey, const std::string& version) {
     std::string key = rawKey;
     const std::string token = "<VERSION>";
     size_t pos = key.find(token);
     if (pos != std::string::npos) {
-        // Normalize version to vX.Y.Z.W format (e.g. v1.9.7.17), removing any build suffix like .J460
-        std::string cleanVersion = version;
-        size_t jPos = cleanVersion.find(".J");
-        if (jPos == std::string::npos) {
-            jPos = cleanVersion.find(".j");
-        }
-        if (jPos != std::string::npos) {
-            cleanVersion = cleanVersion.substr(0, jPos);
-        }
+        std::string cleanVersion = NormalizeVersion(version);
         key.replace(pos, token.length(), cleanVersion);
     }
     return key;

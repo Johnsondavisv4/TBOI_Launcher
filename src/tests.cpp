@@ -5,6 +5,9 @@
 #include "core/game_runner.h"
 #include "core/launcher_config.h"
 #include "core/mod_updater.h"
+#include "core/diff_patcher.h"
+#include "core/version_manager.h"
+#include "redirect/redirect_rules.h"
 
 #include <iostream>
 #include <cassert>
@@ -281,6 +284,132 @@ int main() {
     } else {
         std::cout << "[TEST] Isaac not found automatically in standard locations (manual selection supported).\n";
     }
+
+    // 9. Test VersionManager & DiffPatcher
+    std::cout << "[TEST] Running VersionManager & DiffPatcher tests...\n";
+    auto excls = VersionManager::GetCopyExclusions();
+    assert(std::find(excls.begin(), excls.end(), "mods") != excls.end());
+    assert(std::find(excls.begin(), excls.end(), "data") != excls.end());
+    assert(std::find(excls.begin(), excls.end(), "dinput8.dll") != excls.end());
+    assert(std::find(excls.begin(), excls.end(), "interpol.ini") != excls.end());
+    std::cout << "[TEST] VersionManager Copy Exclusions list: PASSED\n";
+
+    // Test selective physical copy (verifying exclusions)
+    fs::path mockSteam = "test_mock_steam_root";
+    fs::path mockVerDst = "test_mock_ver_dst";
+    fs::create_directories(mockSteam / "resources" / "packed");
+    fs::create_directories(mockSteam / "mods" / "test_mod");
+    fs::create_directories(mockSteam / "data");
+    {
+        std::ofstream(mockSteam / "isaac-ng.exe") << "mock_exe_bytes";
+        std::ofstream(mockSteam / "resources" / "packed" / "afterbirth.a") << "mock_res";
+        std::ofstream(mockSteam / "mods" / "test_mod" / "main.lua") << "mock_mod";
+        std::ofstream(mockSteam / "data" / "save.dat") << "mock_save";
+        std::ofstream(mockSteam / "dinput8.dll") << "mock_dinput8";
+        std::ofstream(mockSteam / "interpol.ini") << "mock_interpol";
+    }
+
+    assert(VersionManager::CopySteamBaseFiles(mockSteam, mockVerDst));
+    assert(fs::exists(mockVerDst / "isaac-ng.exe"));
+    assert(fs::exists(mockVerDst / "resources" / "packed" / "afterbirth.a"));
+    assert(!fs::exists(mockVerDst / "mods"));
+    assert(!fs::exists(mockVerDst / "data"));
+    assert(!fs::exists(mockVerDst / "dinput8.dll"));
+    assert(!fs::exists(mockVerDst / "interpol.ini"));
+    std::cout << "[TEST] VersionManager Physical Copy with Exclusions (mods, data, dinput8.dll, interpol.ini): PASSED\n";
+
+    fs::remove_all(mockSteam);
+    fs::remove_all(mockVerDst);
+
+    // Test SHA256 Calculation
+    fs::path mockShaFile = "test_mock_sha.bin";
+    {
+        std::ofstream ofs(mockShaFile, std::ios::binary);
+        ofs << "TheBindingOfIsaac";
+    }
+    // SHA256("TheBindingOfIsaac") = 47ca8aef9fcaea923c6f87eaae396a84f509e5124b8994ec31f13bcf3d5f30cb
+    std::string calcSha = DiffPatcher::CalculateSha256(mockShaFile);
+    assert(calcSha == "47ca8aef9fcaea923c6f87eaae396a84f509e5124b8994ec31f13bcf3d5f30cb");
+    fs::remove(mockShaFile);
+    std::cout << "[TEST] DiffPatcher SHA256 CryptoAPI Calculation: PASSED\n";
+
+    // Test VersionManager ScanVersions
+    fs::path patchesDir = "patch";
+    if (!fs::exists(patchesDir)) patchesDir = "../patch";
+    if (!fs::exists(patchesDir)) patchesDir = "build32/Release/patch";
+
+    VersionManager verMgr;
+    IsaacInstallationInfo mockInfo;
+    mockInfo.valid = true;
+    mockInfo.detectedVersion = "v1.9.7.17";
+    mockInfo.rootDirectory = "C:/Games/Binding of Isaac";
+    mockInfo.executablePath = "C:/Games/Binding of Isaac/isaac-ng.exe";
+
+    verMgr.ScanVersions(patchesDir, "versions", mockInfo);
+    auto available = verMgr.GetAvailableVersions();
+    assert(available.size() >= 1);
+    assert(available[0].id == "vanilla");
+    assert(available[0].isVanilla == true);
+
+    if (fs::exists(patchesDir / "v1.9.7.15" / "manifest.json")) {
+        assert(available.size() >= 2);
+        assert(available[1].id == "v1.9.7.15");
+        assert(available[1].isVanilla == false);
+        std::cout << "[TEST] VersionManager ScanVersions discovered v1.9.7.15: PASSED\n";
+    }
+
+    // Test Redirection Rules (redirect_rules.h)
+    std::wstring testModsDir = L"C:\\Steam\\steamapps\\common\\The Binding of Isaac Rebirth\\mods";
+    std::wstring testDataDir = L"C:\\Steam\\steamapps\\common\\The Binding of Isaac Rebirth\\data";
+    std::wstring testExeRootDir = L"C:\\Steam\\steamapps\\common\\The Binding of Isaac Rebirth\\versions\\v1.9.7.15";
+
+    std::wstring outRedW;
+    // 1. Relative "mods"
+    assert(TryRedirectPathW(L"mods", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testModsDir);
+    assert(TryRedirectPathW(L"mods\\*", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testModsDir + L"\\*");
+    assert(TryRedirectPathW(L"mods\\External Item Descriptions\\main.lua", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testModsDir + L"\\External Item Descriptions\\main.lua");
+    assert(TryRedirectPathW(L".\\mods\\mod1\\metadata.xml", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testModsDir + L"\\mod1\\metadata.xml");
+    assert(TryRedirectPathW(L"mods/mod1/main.lua", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testModsDir + L"\\mod1\\main.lua");
+
+    // 2. Relative "data"
+    assert(TryRedirectPathW(L"data", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testDataDir);
+    assert(TryRedirectPathW(L"data\\*", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testDataDir + L"\\*");
+    assert(TryRedirectPathW(L"data\\save1.dat", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testDataDir + L"\\save1.dat");
+    assert(TryRedirectPathW(L"data/options.ini", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testDataDir + L"\\options.ini");
+
+    // 3. Absolute path pointing to version directory
+    assert(TryRedirectPathW(L"C:\\Steam\\steamapps\\common\\The Binding of Isaac Rebirth\\versions\\v1.9.7.15\\mods\\mod1", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testModsDir + L"\\mod1");
+    assert(TryRedirectPathW(L"C:/Steam/steamapps/common/The Binding of Isaac Rebirth/versions/v1.9.7.15/mods/mod1/main.lua", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testModsDir + L"\\mod1\\main.lua");
+    assert(TryRedirectPathW(L"C:\\Steam\\steamapps\\common\\The Binding of Isaac Rebirth\\versions\\v1.9.7.15\\data\\save1.dat", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == testDataDir + L"\\save1.dat");
+
+    // 4. Extended prefix \\?\ path
+    assert(TryRedirectPathW(L"\\\\?\\C:\\Steam\\steamapps\\common\\The Binding of Isaac Rebirth\\versions\\v1.9.7.15\\mods\\mod1", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(outRedW == L"\\\\?\\" + testModsDir + L"\\mod1");
+
+    // 5. ANSI path redirection
+    std::string outRedA;
+    assert(TryRedirectPathA("mods/eid/main.lua", testModsDir, testDataDir, testExeRootDir, outRedA));
+    assert(outRedA == "C:\\Steam\\steamapps\\common\\The Binding of Isaac Rebirth\\mods\\eid\\main.lua");
+
+    // 6. Negative checks (should NOT redirect)
+    assert(!TryRedirectPathW(L"resources\\packed\\afterbirth.a", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(!TryRedirectPathW(L"isaac-ng.exe", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(!TryRedirectPathW(L"savedatapath.txt", testModsDir, testDataDir, testExeRootDir, outRedW));
+    assert(!TryRedirectPathA("resources/packed/repentance.a", testModsDir, testDataDir, testExeRootDir, outRedA));
+
+    std::cout << "[TEST] Transparent Mods & Data Redirection Rules: PASSED\n";
 
     std::cout << "\n========================================\n";
     std::cout << "ALL TBOI: LAUNCHER CORE UNIT TESTS PASSED!\n";

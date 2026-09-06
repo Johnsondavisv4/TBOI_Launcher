@@ -1,8 +1,10 @@
 #include "ui/main_frame.h"
+#include "ui/app.h"
 #include "ui/options_dialog.h"
 #include "ui/checklogs_dialog.h"
 #include "ui/mod_update_dialog.h"
 #include "core/game_runner.h"
+#include "core/process_injector.h"
 #include "steam_api.h"
 
 #include <wx/statline.h>
@@ -10,6 +12,7 @@
 #include <wx/msgdlg.h>
 #include <wx/clipbrd.h>
 #include <wx/stdpaths.h>
+#include <wx/clntdata.h>
 #include <filesystem>
 #include <fstream>
 
@@ -20,6 +23,7 @@ namespace fs = std::filesystem;
 enum {
     ID_BTN_PLAY = wxID_HIGHEST + 400,
     ID_BTN_BROWSE_EXE,
+    ID_CHOICE_VERSION,
     ID_CHK_STEALTH,
     ID_BTN_MOD_MANAGER,
     ID_BTN_CHECK_LOGS,
@@ -29,6 +33,7 @@ enum {
 wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
     EVT_BUTTON(ID_BTN_PLAY, MainFrame::OnPlayClicked)
     EVT_BUTTON(ID_BTN_BROWSE_EXE, MainFrame::OnBrowseExeClicked)
+    EVT_CHOICE(ID_CHOICE_VERSION, MainFrame::OnVersionSelected)
     EVT_CHECKBOX(ID_CHK_STEALTH, MainFrame::OnStealthCheckboxToggled)
     EVT_BUTTON(ID_BTN_CHANGE_OPTIONS, MainFrame::OnChangeOptionsClicked)
     EVT_BUTTON(ID_BTN_MOD_MANAGER, MainFrame::OnOpenModManagerClicked)
@@ -40,12 +45,14 @@ MainFrame::MainFrame(
     const IsaacInstallationInfo& info,
     std::shared_ptr<OptionsManager> optionsMgr,
     std::shared_ptr<ModManager> modMgr,
+    std::shared_ptr<VersionManager> versionMgr,
     std::shared_ptr<LauncherConfig> launcherConfig,
     bool isSteamActive
-) : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(620, 500)),
+) : wxFrame(nullptr, wxID_ANY, title, wxDefaultPosition, wxSize(620, 520)),
     m_isaacInfo(info),
     m_optionsMgr(std::move(optionsMgr)),
     m_modMgr(std::move(modMgr)),
+    m_versionMgr(std::move(versionMgr)),
     m_launcherConfig(std::move(launcherConfig)),
     m_isSteamActive(isSteamActive) {
 
@@ -160,6 +167,73 @@ void MainFrame::BuildUI() {
     }
 }
 
+void MainFrame::RefreshVersionChoices() {
+    if (!m_versionChoice || !m_versionMgr) return;
+
+    m_versionChoice->Clear();
+    auto versions = m_versionMgr->GetAvailableVersions();
+    std::string currentSelected = m_launcherConfig ? m_launcherConfig->GetSelectedVersion() : "vanilla";
+
+    int selectedIdx = 0;
+    for (size_t i = 0; i < versions.size(); ++i) {
+        const auto& v = versions[i];
+        wxString label = wxString::FromUTF8(v.displayName.c_str());
+        if (!v.isVanilla) {
+            label += v.isReady ? " (Ready)" : " (Needs Setup)";
+        }
+        m_versionChoice->Append(label, new wxStringClientData(wxString::FromUTF8(v.id.c_str())));
+        if (v.id == currentSelected) {
+            selectedIdx = (int)i;
+        }
+    }
+
+    if (m_versionChoice->GetCount() > 0) {
+        m_versionChoice->SetSelection(selectedIdx);
+    }
+}
+
+std::string MainFrame::GetSelectedVersionId() const {
+    if (!m_versionChoice) {
+        return m_launcherConfig ? m_launcherConfig->GetSelectedVersion() : "vanilla";
+    }
+    int sel = m_versionChoice->GetSelection();
+    if (sel != wxNOT_FOUND) {
+        auto* data = dynamic_cast<wxStringClientData*>(m_versionChoice->GetClientObject(sel));
+        if (data) {
+            return data->GetData().ToStdString();
+        }
+    }
+    return "vanilla";
+}
+
+void MainFrame::OnVersionSelected(wxCommandEvent&) {
+    std::string verId = GetSelectedVersionId();
+    if (m_launcherConfig) {
+        m_launcherConfig->SetSelectedVersion(verId);
+        m_launcherConfig->Save(LauncherConfig::GetDefaultConfigPath());
+    }
+
+    std::string activeVerForSchema = verId;
+    if (activeVerForSchema == "vanilla") {
+        activeVerForSchema = m_isaacInfo.valid ? m_isaacInfo.detectedVersion : "v1.9.7.17";
+    }
+
+    if (m_optionsMgr) {
+        m_optionsMgr->SetActiveVersion(activeVerForSchema);
+    }
+
+    if (m_versionMgr) {
+        auto verOpt = m_versionMgr->FindVersion(verId);
+        if (verOpt && !verOpt->isVanilla && !verOpt->isReady) {
+            m_btnPlay->SetLabel("Prepare & Launch");
+            Log("Selected version: " + wxString::FromUTF8(verId.c_str()) + " (will be prepared automatically upon launching)");
+        } else {
+            m_btnPlay->SetLabel("Launch game");
+            Log("Selected version: " + wxString::FromUTF8(verId.c_str()));
+        }
+    }
+}
+
 void MainFrame::AddLauncherConfigurationOptions(wxSizer* sizer, wxWindow* parentBox) {
     // Row 1: Isaac executable path + Choose exe button
     auto* exeRow = new wxBoxSizer(wxHORIZONTAL);
@@ -182,7 +256,18 @@ void MainFrame::AddLauncherConfigurationOptions(wxSizer* sizer, wxWindow* parent
 
     sizer->Add(exeRow, 0, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 6);
 
-    // Row 2: Stealth Mode Checkbox
+    // Row 2: Version selection dropdown
+    auto* verRow = new wxBoxSizer(wxHORIZONTAL);
+    auto* verLabel = new wxStaticText(parentBox, wxID_ANY, "Game version   ");
+    verRow->Add(verLabel, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 6);
+
+    m_versionChoice = new wxChoice(parentBox, ID_CHOICE_VERSION);
+    RefreshVersionChoices();
+    verRow->Add(m_versionChoice, 1, wxALIGN_CENTER_VERTICAL);
+
+    sizer->Add(verRow, 0, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 6);
+
+    // Row 3: Stealth Mode Checkbox
     m_chkStealthMode = new wxCheckBox(parentBox, ID_CHK_STEALTH, "Stealth Mode (Always ON in BigPicture mode and Steam Deck)");
     m_chkStealthMode->SetValue(m_launcherConfig->GetStealthMode());
     m_chkStealthMode->SetToolTip("When starting the launcher, skip the main window and automatically launch Isaac, then close the launcher afterwards.\n\nThe launcher will appear if an error occurs.");
@@ -260,7 +345,21 @@ void MainFrame::EnableInterface(bool enable) {
     if (m_gameConfigBox) m_gameConfigBox->Enable(enable);
     if (m_btnPlay) {
         m_btnPlay->Enable(enable && m_isaacInfo.valid);
-        m_btnPlay->SetLabel(enable ? "Launch game" : "Playing...");
+        if (enable) {
+            std::string verId = GetSelectedVersionId();
+            if (m_versionMgr) {
+                auto verOpt = m_versionMgr->FindVersion(verId);
+                if (verOpt && !verOpt->isVanilla && !verOpt->isReady) {
+                    m_btnPlay->SetLabel("Prepare & Launch");
+                } else {
+                    m_btnPlay->SetLabel("Launch game");
+                }
+            } else {
+                m_btnPlay->SetLabel("Launch game");
+            }
+        } else {
+            m_btnPlay->SetLabel("Playing...");
+        }
     }
 }
 
@@ -275,6 +374,8 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
         wxMessageBox("No valid The Binding of Isaac executable was found.", "Error", wxOK | wxICON_ERROR, this);
         return;
     }
+
+    std::string verId = GetSelectedVersionId();
 
     // Check and download Steam Workshop mod updates before launching
     if (m_isSteamActive && m_launcherConfig && !m_launcherConfig->GetSkipModUpdates() && !isStealth) {
@@ -291,22 +392,88 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
     m_isGameRunning = true;
     m_cancelMonitoring = false;
     EnableInterface(false);
-    SetStatusText("Launching The Binding of Isaac...", 0);
-    Log("Launching Isaac executable: " + wxString::FromUTF8(m_isaacInfo.executablePath.string().c_str()));
 
     HANDLE hProcess = NULL;
     DWORD pid = 0;
+    fs::path targetExePath;
 
-    if (!GameRunner::LaunchVanilla(m_isaacInfo.executablePath, "", &hProcess, &pid)) {
-        m_isGameRunning = false;
-        EnableInterface(true);
-        SetStatusText("Failed to start the game", 0);
-        LogError("Failed to start isaac-ng.exe");
+    if (verId == "vanilla") {
+        targetExePath = m_isaacInfo.executablePath;
+        SetStatusText("Launching The Binding of Isaac (Vanilla)...", 0);
+        Log("Launching Isaac executable: " + wxString::FromUTF8(m_isaacInfo.executablePath.string().c_str()));
 
-        Show(true);
-        Raise();
-        wxMessageBox("Failed to start isaac-ng.exe. Please verify that the file exists and is not locked.", "Launch Error", wxOK | wxICON_ERROR, this);
-        return;
+        if (!GameRunner::LaunchVanilla(m_isaacInfo.executablePath, "", &hProcess, &pid)) {
+            m_isGameRunning = false;
+            EnableInterface(true);
+            SetStatusText("Failed to start the game", 0);
+            LogError("Failed to start vanilla isaac-ng.exe");
+
+            Show(true);
+            Raise();
+            wxMessageBox("Failed to start isaac-ng.exe. Please verify that the file exists and is not locked.", "Launch Error", wxOK | wxICON_ERROR, this);
+            return;
+        }
+    } else {
+        // Downgraded / Custom version
+        auto verOpt = m_versionMgr ? m_versionMgr->FindVersion(verId) : std::nullopt;
+        if (!verOpt) {
+            m_isGameRunning = false;
+            EnableInterface(true);
+            SetStatusText("Error: Unknown version", 0);
+            LogError("Unknown version ID: " + wxString::FromUTF8(verId.c_str()));
+            Show(true);
+            Raise();
+            wxMessageBox("The selected game version was not found.", "Version Error", wxOK | wxICON_ERROR, this);
+            return;
+        }
+
+        if (!verOpt->isReady) {
+            SetStatusText("Preparing version " + wxString::FromUTF8(verId.c_str()) + "...", 0);
+            Log("Cloning base files and applying delta patch for " + wxString::FromUTF8(verId.c_str()) + "...");
+
+            bool prepSuccess = m_versionMgr->PrepareVersion(verId, m_isaacInfo, [this](int pct, const std::string& msg) {
+                wxTheApp->CallAfter([this, pct, msg]() {
+                    SetStatusText(wxString::Format("[%d%%] %s", pct, msg.c_str()), 0);
+                    Log(wxString::FromUTF8(msg.c_str()));
+                });
+            });
+
+            if (!prepSuccess) {
+                m_isGameRunning = false;
+                EnableInterface(true);
+                SetStatusText("Failed to prepare version " + wxString::FromUTF8(verId.c_str()), 0);
+                LogError("Failed to prepare downgraded version: " + wxString::FromUTF8(verId.c_str()));
+                RefreshVersionChoices();
+                Show(true);
+                Raise();
+                wxMessageBox("Failed to prepare downgraded version.\nPlease check launcher.log for detailed diagnostics.", "Downgrade Error", wxOK | wxICON_ERROR, this);
+                return;
+            }
+
+            RefreshVersionChoices();
+        }
+
+        targetExePath = m_versionMgr->GetExePathForVersion(verId, m_isaacInfo);
+        fs::path redirectDll = LauncherApp::FindRedirectDllPath();
+        fs::path steamModsDir = m_isaacInfo.modsDirectory;
+        fs::path steamDataDir = m_isaacInfo.rootDirectory / "data";
+
+        SetStatusText("Launching " + wxString::FromUTF8(verId.c_str()) + "...", 0);
+        Log("Launching downgraded executable: " + wxString::FromUTF8(targetExePath.string().c_str()));
+        Log("Redirecting /mods -> " + wxString::FromUTF8(steamModsDir.string().c_str()));
+        Log("Redirecting /data -> " + wxString::FromUTF8(steamDataDir.string().c_str()));
+
+        if (!ProcessInjector::LaunchWithRedirect(targetExePath, redirectDll, steamModsDir, steamDataDir, "", &hProcess, &pid)) {
+            m_isGameRunning = false;
+            EnableInterface(true);
+            SetStatusText("Failed to start custom version", 0);
+            LogError("Failed to launch " + wxString::FromUTF8(targetExePath.string().c_str()));
+
+            Show(true);
+            Raise();
+            wxMessageBox("Failed to launch downgraded isaac-ng.exe.", "Launch Error", wxOK | wxICON_ERROR, this);
+            return;
+        }
     }
 
     Log(wxString::Format("Started isaac-ng.exe (PID: %lu)", pid));
@@ -319,7 +486,7 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
         m_monitorThread.join();
     }
 
-    m_monitorThread = std::thread([this, hProcess, pid, isStealth]() {
+    m_monitorThread = std::thread([this, hProcess, pid, isStealth, targetExePath]() {
         DWORD exitCode = GameRunner::WaitForGame(hProcess);
 
         if (exitCode == 0x35) {
@@ -328,7 +495,7 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
                 OnSteamHandoverStarted(isStealth);
             });
 
-            std::wstring exeName = m_isaacInfo.executablePath.filename().wstring();
+            std::wstring exeName = targetExePath.filename().wstring();
             if (exeName.empty()) {
                 exeName = L"isaac-ng.exe";
             }
@@ -423,6 +590,15 @@ void MainFrame::OnSteamPollTimer(wxTimerEvent&) {
                     m_optionsMgr->SetTargetIniPath(m_isaacInfo.optionsIniPath);
                     m_optionsMgr->LoadFromIni(m_isaacInfo.optionsIniPath);
                 }
+                if (m_versionMgr) {
+                    fs::path patchDir = LauncherApp::FindPatchDir();
+                    wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
+                    fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
+                    fs::path versionsRootDir = m_isaacInfo.valid ? (m_isaacInfo.rootDirectory / "versions") : (exeDir / "versions");
+                    m_versionMgr->ScanVersions(patchDir, versionsRootDir, m_isaacInfo);
+                    RefreshVersionChoices();
+                }
+
                 if (m_modMgr) {
                     m_modMgr->ScanMods(m_isaacInfo.modsDirectory);
                     if (m_modManagerFrame) {
@@ -512,9 +688,19 @@ void MainFrame::OnBrowseExeClicked(wxCommandEvent&) {
         }
 
         if (m_optionsMgr) {
-            m_optionsMgr->SetActiveVersion(m_isaacInfo.detectedVersion);
+            std::string verId = GetSelectedVersionId();
+            m_optionsMgr->SetActiveVersion(verId == "vanilla" ? m_isaacInfo.detectedVersion : verId);
             m_optionsMgr->SetTargetIniPath(m_isaacInfo.optionsIniPath);
             m_optionsMgr->LoadFromIni(m_isaacInfo.optionsIniPath);
+        }
+
+        if (m_versionMgr) {
+            fs::path patchDir = LauncherApp::FindPatchDir();
+            wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
+            fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
+            fs::path versionsRootDir = m_isaacInfo.valid ? (m_isaacInfo.rootDirectory / "versions") : (exeDir / "versions");
+            m_versionMgr->ScanVersions(patchDir, versionsRootDir, m_isaacInfo);
+            RefreshVersionChoices();
         }
 
         if (m_modMgr) {
