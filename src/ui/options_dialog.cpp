@@ -361,7 +361,7 @@ bool OptionsDialog::SaveChanges() {
 void OptionsDialog::RestoreDefaults() {
     for (auto& [key, binding] : m_bindings) {
         const auto& opt = binding.definition;
-        std::string def = opt.defaultValue;
+        std::string def = m_optionsMgr ? m_optionsMgr->GetDefaultValue(opt.resolvedKey) : opt.defaultValue;
 
         if (opt.type == OptionType::Bool && binding.checkBox) {
             binding.checkBox->SetValue(def == "1" || def == "true");
@@ -392,7 +392,7 @@ bool OptionsDialog::HasUnsavedChanges() const {
     for (const auto& [key, binding] : m_bindings) {
         const auto& opt = binding.definition;
         auto it = m_initialValues.find(key);
-        std::string initialVal = (it != m_initialValues.end()) ? it->second : opt.defaultValue;
+        std::string initialVal = (it != m_initialValues.end()) ? it->second : (m_optionsMgr ? m_optionsMgr->GetDefaultValue(opt.resolvedKey) : opt.defaultValue);
 
         if (opt.type == OptionType::Bool && binding.checkBox) {
             bool initialBool = (initialVal == "1" || initialVal == "true" || initialVal == "True");

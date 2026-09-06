@@ -30,6 +30,8 @@ public:
     bool EnableAll();
     bool DisableAll();
 
+    static bool SeedDefaultData(const std::filesystem::path& templateDataDir, const std::filesystem::path& targetDataDir);
+
     const std::filesystem::path& GetModsDirectory() const { return m_modsDir; }
 
 private:

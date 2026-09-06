@@ -125,4 +125,28 @@ bool ModManager::DisableAll() {
     return success;
 }
 
+bool ModManager::SeedDefaultData(const fs::path& templateDataDir, const fs::path& targetDataDir) {
+    if (!fs::exists(templateDataDir) || !fs::is_directory(templateDataDir)) {
+        return false;
+    }
+
+    std::error_code ec;
+    fs::create_directories(targetDataDir, ec);
+
+    for (const auto& entry : fs::recursive_directory_iterator(templateDataDir, fs::directory_options::skip_permission_denied, ec)) {
+        if (entry.is_regular_file()) {
+            fs::path rel = fs::relative(entry.path(), templateDataDir);
+            fs::path dstPath = targetDataDir / rel;
+
+            // Only copy if the target file does not already exist (preserve existing user mod data)
+            if (!fs::exists(dstPath)) {
+                fs::create_directories(dstPath.parent_path(), ec);
+                fs::copy_file(entry.path(), dstPath, fs::copy_options::none, ec);
+            }
+        }
+    }
+
+    return true;
+}
+
 } // namespace TBOI

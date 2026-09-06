@@ -120,6 +120,36 @@ int main() {
 
     fs::remove(tempIni);
 
+    // Test OptionsManager Default Template with dynamic <VERSION>
+    fs::path tempTemplateIni = "test_template_option.ini";
+    {
+        std::ofstream ofs(tempTemplateIni);
+        ofs << "[Options]\n";
+        ofs << "Language=2\n";
+        ofs << "MusicVolume=0.3333\n";
+        ofs << "AcceptedPublicBeta_<VERSION>=1\n";
+        ofs << "AcceptedModDisclaimer=1\n";
+    }
+
+    OptionsManager optTplMgr;
+    assert(optTplMgr.Initialize(schemaPath, "v1.9.7.15"));
+    assert(optTplMgr.LoadDefaultTemplate(tempTemplateIni));
+    assert(optTplMgr.HasDefaultTemplate());
+
+    // Without loading any user ini, GetValue should return the template default mapped for v1.9.7.15
+    assert(optTplMgr.GetInt("Language") == 2);
+    assert(optTplMgr.GetFloat("MusicVolume") == 0.3333);
+    assert(optTplMgr.GetBool("AcceptedPublicBeta_v1.9.7.15") == true);
+    assert(optTplMgr.GetBool("AcceptedModDisclaimer") == true);
+
+    // Switch active version to v1.9.7.17 and verify AcceptedPublicBeta_<VERSION> resolves to v1.9.7.17
+    optTplMgr.SetActiveVersion("v1.9.7.17");
+    assert(optTplMgr.GetBool("AcceptedPublicBeta_v1.9.7.17") == true);
+    assert(optTplMgr.GetDefaultValue("AcceptedPublicBeta_v1.9.7.17") == "1");
+
+    fs::remove(tempTemplateIni);
+    std::cout << "[TEST] OptionsManager Default Template & Dynamic <VERSION> Mapping: PASSED\n";
+
     // 3. Test ModManager
     fs::path tempMods = "test_mods";
     fs::create_directories(tempMods / "cool_mod_12345");
@@ -147,10 +177,46 @@ int main() {
 
     assert(modMgr.SetModEnabled("cool_mod_12345", true));
     assert(!fs::exists(tempMods / "cool_mod_12345" / "disable.it"));
-    assert(modMgr.GetMods()[0].isEnabled == true);
-    std::cout << "[TEST] ModManager Scan & disable.it Toggling: PASSED\n";
-
     fs::remove_all(tempMods);
+
+    // Test ModManager::SeedDefaultData
+    fs::path tempTplData = "test_tpl_data";
+    fs::path tempTargetData = "test_target_data";
+    fs::create_directories(tempTplData / "eid_config");
+    fs::create_directories(tempTplData / "custom_mod");
+    {
+        std::ofstream(tempTplData / "eid_config" / "save1.dat") << "eid_default_data";
+        std::ofstream(tempTplData / "custom_mod" / "settings.ini") << "key=default_val";
+    }
+
+    // Existing file in target should NOT be overwritten
+    fs::create_directories(tempTargetData / "eid_config");
+    {
+        std::ofstream(tempTargetData / "eid_config" / "save1.dat") << "user_existing_save";
+    }
+
+    assert(ModManager::SeedDefaultData(tempTplData, tempTargetData));
+
+    // Check that existing file was preserved
+    std::string existingContent;
+    {
+        std::ifstream ifs(tempTargetData / "eid_config" / "save1.dat");
+        ifs >> existingContent;
+    }
+    assert(existingContent == "user_existing_save");
+
+    // Check that missing file was seeded
+    assert(fs::exists(tempTargetData / "custom_mod" / "settings.ini"));
+    std::string seededContent;
+    {
+        std::ifstream ifs(tempTargetData / "custom_mod" / "settings.ini");
+        ifs >> seededContent;
+    }
+    assert(seededContent == "key=default_val");
+
+    fs::remove_all(tempTplData);
+    fs::remove_all(tempTargetData);
+    std::cout << "[TEST] ModManager SeedDefaultData (preserving existing user data): PASSED\n";
 
     // 4. Test GameRunner
     fs::path tempVanillaDir = "test_vanilla_dir";

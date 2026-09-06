@@ -139,6 +139,70 @@ fs::path LauncherApp::FindRedirectDllPath() {
     return "tboi_redirect.dll";
 }
 
+fs::path LauncherApp::FindDefaultTemplateIniPath() {
+    wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
+    fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
+
+    // 1. Next to executable
+    if (fs::exists(exeDir / "option.ini")) return exeDir / "option.ini";
+    if (fs::exists(exeDir / "options.ini")) return exeDir / "options.ini";
+
+    // 2. In launcher-data subfolder (from data.bin extraction)
+    if (fs::exists(exeDir / "launcher-data" / "option.ini")) return exeDir / "launcher-data" / "option.ini";
+    if (fs::exists(exeDir / "launcher-data" / "options.ini")) return exeDir / "launcher-data" / "options.ini";
+
+    // 3. In launcher-data-build subfolder (during build/dev)
+    if (fs::exists(exeDir / "launcher-data-build" / "option.ini")) return exeDir / "launcher-data-build" / "option.ini";
+    if (fs::exists(exeDir / "launcher-data-build" / "options.ini")) return exeDir / "launcher-data-build" / "options.ini";
+
+    // 4. Current working directory
+    if (fs::exists("option.ini")) return "option.ini";
+    if (fs::exists("options.ini")) return "options.ini";
+
+    // 5. Parent directory (for dev / build folders)
+    if (fs::exists(exeDir.parent_path() / "option.ini")) return exeDir.parent_path() / "option.ini";
+    if (fs::exists(exeDir.parent_path() / "options.ini")) return exeDir.parent_path() / "options.ini";
+    if (fs::exists(exeDir.parent_path().parent_path() / "option.ini")) return exeDir.parent_path().parent_path() / "option.ini";
+    if (fs::exists(exeDir.parent_path().parent_path() / "options.ini")) return exeDir.parent_path().parent_path() / "options.ini";
+
+    return "";
+}
+
+fs::path LauncherApp::FindDefaultDataTemplateDir() {
+    wxString exePathStr = wxStandardPaths::Get().GetExecutablePath();
+    fs::path exeDir = fs::path(exePathStr.ToStdWstring()).parent_path();
+
+    // 1. Next to executable
+    if (fs::exists(exeDir / "data") && fs::is_directory(exeDir / "data")) {
+        return exeDir / "data";
+    }
+
+    // 2. In launcher-data subfolder (from data.bin extraction)
+    if (fs::exists(exeDir / "launcher-data" / "data") && fs::is_directory(exeDir / "launcher-data" / "data")) {
+        return exeDir / "launcher-data" / "data";
+    }
+
+    // 3. In launcher-data-build subfolder (during build/dev)
+    if (fs::exists(exeDir / "launcher-data-build" / "data") && fs::is_directory(exeDir / "launcher-data-build" / "data")) {
+        return exeDir / "launcher-data-build" / "data";
+    }
+
+    // 4. Current working directory
+    if (fs::exists("data") && fs::is_directory("data")) {
+        return "data";
+    }
+
+    // 5. Parent directory (for dev / build folders)
+    if (fs::exists(exeDir.parent_path() / "data") && fs::is_directory(exeDir.parent_path() / "data")) {
+        return exeDir.parent_path() / "data";
+    }
+    if (fs::exists(exeDir.parent_path().parent_path() / "data") && fs::is_directory(exeDir.parent_path().parent_path() / "data")) {
+        return exeDir.parent_path().parent_path() / "data";
+    }
+
+    return "";
+}
+
 bool LauncherApp::OnInit() {
     wxSystemOptions::SetOption("msw.no-manifest-check", 1);
 
@@ -235,6 +299,12 @@ bool LauncherApp::OnInit() {
     }
     m_optionsMgr->Initialize(schemaPath, activeVer);
 
+    // Load default template option.ini / options.ini if present
+    fs::path templateIni = FindDefaultTemplateIniPath();
+    if (!templateIni.empty() && fs::exists(templateIni)) {
+        m_optionsMgr->LoadDefaultTemplate(templateIni);
+    }
+
     if (isaacInfo.valid) {
         m_optionsMgr->SetTargetIniPath(isaacInfo.optionsIniPath);
         if (fs::exists(isaacInfo.optionsIniPath)) {
@@ -242,10 +312,17 @@ bool LauncherApp::OnInit() {
         }
     }
 
-    // 6. Initialize Mod Manager
+    // 6. Initialize Mod Manager & Seed default mod data if template data/ folder exists
     m_modMgr = std::make_shared<ModManager>();
-    if (isaacInfo.valid && fs::exists(isaacInfo.modsDirectory)) {
-        m_modMgr->ScanMods(isaacInfo.modsDirectory);
+    if (isaacInfo.valid) {
+        fs::path dataTemplate = FindDefaultDataTemplateDir();
+        if (!dataTemplate.empty() && fs::exists(dataTemplate)) {
+            ModManager::SeedDefaultData(dataTemplate, isaacInfo.rootDirectory / "data");
+        }
+
+        if (fs::exists(isaacInfo.modsDirectory)) {
+            m_modMgr->ScanMods(isaacInfo.modsDirectory);
+        }
     }
 
     // 7. Create Main Frame

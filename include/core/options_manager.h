@@ -16,6 +16,11 @@ public:
     ~OptionsManager();
 
     bool Initialize(const std::filesystem::path& schemaPath, const std::string& detectedVersion);
+    bool LoadDefaultTemplate(const std::filesystem::path& templateIniPath);
+    bool HasDefaultTemplate() const { return !m_defaultTemplates.empty(); }
+    std::string GetDefaultValue(const std::string& key) const;
+    const std::map<std::string, std::string>& GetDefaultTemplates() const { return m_defaultTemplates; }
+
     bool LoadFromIni(const std::filesystem::path& iniPath);
     bool SaveToIni(const std::filesystem::path& iniPath = "");
 
@@ -44,6 +49,7 @@ public:
 private:
     OptionsSchema m_schema;
     std::string m_activeVersion;
+    std::map<std::string, std::string> m_defaultTemplates;
     std::map<std::string, std::string> m_values;
     std::vector<std::string> m_fileOrderKeys;
     std::filesystem::path m_loadedIniPath;

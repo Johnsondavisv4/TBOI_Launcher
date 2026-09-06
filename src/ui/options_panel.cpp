@@ -231,7 +231,7 @@ void OptionsPanel::RevertChanges() {
 void OptionsPanel::ResetToDefaults() {
     for (auto& [key, binding] : m_bindings) {
         const auto& opt = binding.definition;
-        std::string def = opt.defaultValue;
+        std::string def = m_optionsMgr ? m_optionsMgr->GetDefaultValue(opt.resolvedKey) : opt.defaultValue;
 
         if (opt.type == OptionType::Bool && binding.checkBox) {
             binding.checkBox->SetValue(def == "1" || def == "true");

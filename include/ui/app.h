@@ -23,6 +23,8 @@ public:
     static std::filesystem::path FindSchemaPath();
     static std::filesystem::path FindPatchDir();
     static std::filesystem::path FindRedirectDllPath();
+    static std::filesystem::path FindDefaultTemplateIniPath();
+    static std::filesystem::path FindDefaultDataTemplateDir();
 
 private:
     std::shared_ptr<OptionsManager> m_optionsMgr;

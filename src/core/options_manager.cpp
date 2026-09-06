@@ -29,6 +29,38 @@ bool OptionsManager::Initialize(const fs::path& schemaPath, const std::string& d
     return true;
 }
 
+bool OptionsManager::LoadDefaultTemplate(const fs::path& templateIniPath) {
+    m_defaultTemplates.clear();
+
+    if (!fs::exists(templateIniPath)) {
+        return false;
+    }
+
+    std::ifstream file(templateIniPath);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::string trimmed = Trim(line);
+        if (trimmed.empty() || trimmed[0] == '#' || trimmed[0] == ';' || (trimmed.front() == '[' && trimmed.back() == ']')) {
+            continue;
+        }
+
+        size_t eqPos = trimmed.find('=');
+        if (eqPos != std::string::npos) {
+            std::string key = Trim(trimmed.substr(0, eqPos));
+            std::string val = Trim(trimmed.substr(eqPos + 1));
+            if (!key.empty()) {
+                m_defaultTemplates[key] = val;
+            }
+        }
+    }
+
+    return true;
+}
+
 void OptionsManager::SetActiveVersion(const std::string& version) {
     if (m_activeVersion == version || version.empty()) {
         return;
@@ -147,21 +179,43 @@ bool OptionsManager::SaveToIni(const fs::path& iniPath) {
     return true;
 }
 
+std::string OptionsManager::GetDefaultValue(const std::string& key) const {
+    if (!m_defaultTemplates.empty()) {
+        // 1. Direct match (e.g. "Language", "MusicVolume", or already resolved dynamic key)
+        auto it = m_defaultTemplates.find(key);
+        if (it != m_defaultTemplates.end()) {
+            return it->second;
+        }
+
+        // 2. Check template keys containing <VERSION> (e.g. "AcceptedPublicBeta_<VERSION>")
+        for (const auto& [tplKey, tplVal] : m_defaultTemplates) {
+            if (tplKey.find("<VERSION>") != std::string::npos) {
+                std::string resolvedTplKey = OptionsSchema::ResolveDynamicKey(tplKey, m_activeVersion);
+                if (resolvedTplKey == key) {
+                    return tplVal;
+                }
+            }
+        }
+    }
+
+    // 3. Fallback: look up default value in active schema options
+    auto activeOptions = GetActiveOptions();
+    for (const auto& opt : activeOptions) {
+        if (opt.resolvedKey == key || opt.rawKey == key) {
+            return opt.defaultValue;
+        }
+    }
+
+    return "";
+}
+
 std::string OptionsManager::GetValue(const std::string& key) const {
     auto it = m_values.find(key);
     if (it != m_values.end()) {
         return it->second;
     }
 
-    // Fallback: look up default value in active schema options
-    auto activeOptions = GetActiveOptions();
-    for (const auto& opt : activeOptions) {
-        if (opt.resolvedKey == key) {
-            return opt.defaultValue;
-        }
-    }
-
-    return "";
+    return GetDefaultValue(key);
 }
 
 void OptionsManager::SetValue(const std::string& key, const std::string& value) {
