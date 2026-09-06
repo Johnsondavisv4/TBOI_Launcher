@@ -16,7 +16,7 @@ An easy-to-use launcher for **The Binding of Isaac: Repentance+** that allows yo
 
 ## Credits
 
-This project is based on and inspired by the **REPENTOGON Launcher**, from which it takes:
+This project is strongly based on and inspired by the **REPENTOGON Launcher**, from which it draws:
 - The interface design and layout.
 - The system for reading and saving game options.
 - The method for enabling and disabling mods.
