@@ -11,6 +11,7 @@ struct InterpolationStatus {
     bool isInstalled = false;
     bool isEnabled = false;
     bool isSupported = false;
+    bool isTargetReady = false;
     std::string targetVersion;
     std::filesystem::path targetDir;
     std::filesystem::path sourceDllPath;

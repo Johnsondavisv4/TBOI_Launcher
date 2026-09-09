@@ -58,7 +58,14 @@ InterpolationStatus InterpolationManager::GetStatus(
     // 2. Determine target game directory
     status.targetDir = GetTargetDirectory(versionId, isaacInfo, versionsRootDir);
 
-    // 3. Determine source interpolation patch directory
+    // 3. Check target directory readiness
+    if (versionId.empty() || versionId == "vanilla") {
+        status.isTargetReady = isaacInfo.valid && fs::exists(isaacInfo.rootDirectory);
+    } else {
+        status.isTargetReady = fs::exists(status.targetDir) && fs::exists(status.targetDir / "isaac-ng.exe");
+    }
+
+    // 4. Determine source interpolation patch directory
     fs::path patchRoot = patchDir.empty() ? FindInterpolationPatchDir() : patchDir;
     fs::path candidateDll = patchRoot / status.targetVersion / "dinput8.dll";
 
@@ -70,13 +77,13 @@ InterpolationStatus InterpolationManager::GetStatus(
         status.isSupported = false;
     }
 
-    // 4. Check if dinput8.dll is installed in target directory
+    // 5. Check if dinput8.dll is installed in target directory
     fs::path installedDll = status.targetDir / "dinput8.dll";
-    status.isInstalled = fs::exists(installedDll);
+    status.isInstalled = status.isTargetReady && fs::exists(installedDll);
 
-    // 5. Check enabled state from interpol.ini
+    // 6. Check enabled state from interpol.ini
     fs::path iniPath = status.targetDir / "interpol.ini";
-    if (fs::exists(iniPath)) {
+    if (status.isTargetReady && fs::exists(iniPath)) {
         std::ifstream ifs(iniPath);
         std::string line;
         while (std::getline(ifs, line)) {
@@ -109,7 +116,7 @@ bool InterpolationManager::InstallPatch(
     const fs::path& patchDir
 ) {
     auto status = GetStatus(versionId, isaacInfo, versionsRootDir, patchDir);
-    if (!status.isSupported || status.sourceDllPath.empty()) {
+    if (!status.isTargetReady || !status.isSupported || status.sourceDllPath.empty()) {
         return false;
     }
 

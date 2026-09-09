@@ -491,8 +491,14 @@ int main() {
     testIsaacInfo.detectedVersion = "v1.9.7.15";
     testIsaacInfo.rootDirectory = testGameRoot;
 
-    // Check status before installation
+    // Check status of a downgraded version that has not been prepared yet
+    auto stUnprepared = InterpolationManager::GetStatus("v1.9.7.15", testIsaacInfo, "non_existent_versions_dir", testInterpPatchRoot);
+    assert(!stUnprepared.isTargetReady);
+    assert(!InterpolationManager::InstallPatch("v1.9.7.15", testIsaacInfo, "non_existent_versions_dir", testInterpPatchRoot));
+
+    // Check status before installation for valid vanilla
     auto stBefore = InterpolationManager::GetStatus("vanilla", testIsaacInfo, "versions", testInterpPatchRoot);
+    assert(stBefore.isTargetReady);
     assert(!stBefore.isInstalled);
     assert(stBefore.isSupported);
 

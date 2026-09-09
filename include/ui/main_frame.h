@@ -57,6 +57,8 @@ private:
     void OnSteamProcessAttached(DWORD newPid);
     void OnSteamPollTimer(wxTimerEvent& event);
     void EnableInterface(bool enable);
+    void UpdatePlayButtonState();
+    void PrepareSelectedVersion();
 
     IsaacInstallationInfo m_isaacInfo;
     std::shared_ptr<OptionsManager> m_optionsMgr;

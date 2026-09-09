@@ -103,7 +103,15 @@ void InterpolationDialog::RefreshStatus() {
         : m_currentVersion;
     m_lblVersion->SetLabel(wxString::FromUTF8(displayVer.c_str()));
 
-    if (!status.isSupported) {
+    if (!status.isTargetReady) {
+        m_lblStatus->SetLabel("Version not setup yet (Needs setup in main window)");
+        m_lblStatus->SetForegroundColour(wxColour(180, 80, 0));
+        m_chkEnabled->Enable(false);
+        m_chkEnabled->SetValue(false);
+        m_btnInstall->SetLabel("Install Patch");
+        m_btnInstall->Enable(false);
+        m_btnUninstall->Enable(false);
+    } else if (!status.isSupported) {
         m_lblStatus->SetLabel("Unsupported (no dinput8.dll for " + status.targetVersion + ")");
         m_lblStatus->SetForegroundColour(wxColour(180, 0, 0));
         m_chkEnabled->Enable(false);
@@ -147,11 +155,18 @@ void InterpolationDialog::OnToggleEnable(wxCommandEvent& event) {
 }
 
 void InterpolationDialog::OnInstallClicked(wxCommandEvent&) {
+    auto status = InterpolationManager::GetStatus(m_currentVersion, m_isaacInfo, m_versionsRootDir, m_patchDir);
+    if (!status.isTargetReady) {
+        wxMessageBox("The selected game version has not been set up yet.\nPlease prepare the version from the main window before installing the 60 FPS patch.", "Version Not Ready", wxOK | wxICON_WARNING, this);
+        RefreshStatus();
+        return;
+    }
+
     if (InterpolationManager::InstallPatch(m_currentVersion, m_isaacInfo, m_versionsRootDir, m_patchDir)) {
         wxMessageBox("60 FPS Interpolation Patch installed successfully!", "Interpolation Patch", wxOK | wxICON_INFORMATION, this);
         RefreshStatus();
     } else {
-        wxMessageBox("Failed to install dinput8.dll / interpol.ini. Please check write permissions.", "Installation Error", wxOK | wxICON_ERROR, this);
+        wxMessageBox("Failed to install dinput8.dll / interpol.ini. Please ensure the target folder exists and check write permissions.", "Installation Error", wxOK | wxICON_ERROR, this);
         RefreshStatus();
     }
 }

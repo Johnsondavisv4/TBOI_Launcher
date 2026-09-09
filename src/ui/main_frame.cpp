@@ -173,18 +173,54 @@ void MainFrame::BuildUI() {
     mainSizer->Add(m_configNotebook, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
 
     // 3. Launch Button (Big bottom button matching REPENTOGON)
-    m_btnPlay = new wxButton(this, ID_BTN_PLAY, m_isSteamActive ? "Launch game" : "Waiting for Steam client...", wxDefaultPosition, wxSize(-1, 48));
+    m_btnPlay = new wxButton(this, ID_BTN_PLAY, "Launch game", wxDefaultPosition, wxSize(-1, 48));
     m_btnPlay->SetFont(m_btnPlay->GetFont().Bold().Larger());
-    m_btnPlay->Enable(m_isSteamActive && m_isaacInfo.valid);
     mainSizer->Add(m_btnPlay, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
 
     SetSizerAndFit(mainSizer);
     CenterOnScreen();
 
+    UpdatePlayButtonState();
+
     m_steamPollTimer.Bind(wxEVT_TIMER, &MainFrame::OnSteamPollTimer, this);
     if (!m_isSteamActive) {
         m_steamPollTimer.Start(1000);
     }
+}
+
+void MainFrame::UpdatePlayButtonState() {
+    if (!m_btnPlay) return;
+
+    if (!m_isSteamActive) {
+        m_btnPlay->SetLabel("Waiting for Steam client...");
+        m_btnPlay->Enable(false);
+        return;
+    }
+
+    if (!m_isaacInfo.valid) {
+        m_btnPlay->SetLabel("Isaac executable not found");
+        m_btnPlay->Enable(false);
+        return;
+    }
+
+    if (m_isGameRunning) {
+        m_btnPlay->SetLabel("Playing...");
+        m_btnPlay->Enable(false);
+        return;
+    }
+
+    std::string verId = GetSelectedVersionId();
+    if (m_versionMgr) {
+        auto verOpt = m_versionMgr->FindVersion(verId);
+        if (verOpt && !verOpt->isVanilla && !verOpt->isReady) {
+            m_btnPlay->SetLabel("Prepare Version");
+            m_btnPlay->Enable(true);
+            return;
+        }
+    }
+
+    m_btnPlay->SetLabel("Launch game");
+    m_btnPlay->Enable(true);
 }
 
 void MainFrame::RefreshVersionChoices() {
@@ -210,6 +246,8 @@ void MainFrame::RefreshVersionChoices() {
     if (m_versionChoice->GetCount() > 0) {
         m_versionChoice->SetSelection(selectedIdx);
     }
+
+    UpdatePlayButtonState();
 }
 
 std::string MainFrame::GetSelectedVersionId() const {
@@ -242,13 +280,13 @@ void MainFrame::OnVersionSelected(wxCommandEvent&) {
         m_optionsMgr->SetActiveVersion(activeVerForSchema);
     }
 
+    UpdatePlayButtonState();
+
     if (m_versionMgr) {
         auto verOpt = m_versionMgr->FindVersion(verId);
         if (verOpt && !verOpt->isVanilla && !verOpt->isReady) {
-            m_btnPlay->SetLabel("Prepare & Launch");
-            Log("Selected version: " + wxString::FromUTF8(verId.c_str()) + " (will be prepared automatically upon launching)");
+            Log("Selected version: " + wxString::FromUTF8(verId.c_str()) + " (needs setup before playing)");
         } else {
-            m_btnPlay->SetLabel("Launch game");
             Log("Selected version: " + wxString::FromUTF8(verId.c_str()));
         }
     }
@@ -432,28 +470,75 @@ void MainFrame::OnStealthCheckboxToggled(wxCommandEvent& event) {
 }
 
 void MainFrame::OnPlayClicked(wxCommandEvent&) {
+    std::string verId = GetSelectedVersionId();
+    if (m_versionMgr) {
+        auto verOpt = m_versionMgr->FindVersion(verId);
+        if (verOpt && !verOpt->isVanilla && !verOpt->isReady) {
+            PrepareSelectedVersion();
+            return;
+        }
+    }
     LaunchGameWithMonitoring(false);
+}
+
+void MainFrame::PrepareSelectedVersion() {
+    std::string verId = GetSelectedVersionId();
+    auto verOpt = m_versionMgr ? m_versionMgr->FindVersion(verId) : std::nullopt;
+    if (!verOpt) {
+        SetStatusText("Error: Unknown version", 0);
+        LogError("Unknown version ID: " + wxString::FromUTF8(verId.c_str()));
+        wxMessageBox("The selected game version was not found.", "Version Error", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    if (!m_isaacInfo.valid) {
+        wxMessageBox("No valid The Binding of Isaac executable was found.", "Error", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    EnableInterface(false);
+    if (m_btnPlay) {
+        m_btnPlay->SetLabel("Preparing Version...");
+        m_btnPlay->Enable(false);
+    }
+
+    SetStatusText("Preparing version " + wxString::FromUTF8(verId.c_str()) + "...", 0);
+    Log("Cloning base files and applying delta patch for " + wxString::FromUTF8(verId.c_str()) + "...");
+
+    bool prepSuccess = m_versionMgr->PrepareVersion(verId, m_isaacInfo, [this](int pct, const std::string& msg) {
+        wxTheApp->CallAfter([this, pct, msg]() {
+            SetStatusText(wxString::Format("[%d%%] %s", pct, msg.c_str()), 0);
+            Log(wxString::FromUTF8(msg.c_str()));
+        });
+    });
+
+    EnableInterface(true);
+    RefreshVersionChoices();
+    UpdatePlayButtonState();
+
+    if (!prepSuccess) {
+        SetStatusText("Failed to prepare version " + wxString::FromUTF8(verId.c_str()), 0);
+        LogError("Failed to prepare downgraded version: " + wxString::FromUTF8(verId.c_str()));
+        wxMessageBox("Failed to prepare downgraded version.\nPlease check launcher.log for detailed diagnostics.", "Downgrade Error", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    SetStatusText("Version " + wxString::FromUTF8(verId.c_str()) + " is ready!", 0);
+    Log("Version " + wxString::FromUTF8(verId.c_str()) + " prepared successfully! You can now launch the game or configure patches.");
+    wxMessageBox("Version " + wxString::FromUTF8(verId.c_str()) + " was prepared successfully!\nYou can now launch the game.", "Setup Complete", wxOK | wxICON_INFORMATION, this);
 }
 
 void MainFrame::EnableInterface(bool enable) {
     if (m_configNotebook) m_configNotebook->Enable(enable);
     if (m_gameConfigBox) m_gameConfigBox->Enable(enable);
-    if (m_btnPlay) {
-        m_btnPlay->Enable(enable && m_isaacInfo.valid);
-        if (enable) {
-            std::string verId = GetSelectedVersionId();
-            if (m_versionMgr) {
-                auto verOpt = m_versionMgr->FindVersion(verId);
-                if (verOpt && !verOpt->isVanilla && !verOpt->isReady) {
-                    m_btnPlay->SetLabel("Prepare & Launch");
-                } else {
-                    m_btnPlay->SetLabel("Launch game");
-                }
-            } else {
-                m_btnPlay->SetLabel("Launch game");
+    if (enable) {
+        UpdatePlayButtonState();
+    } else {
+        if (m_btnPlay) {
+            m_btnPlay->Enable(false);
+            if (m_isGameRunning) {
+                m_btnPlay->SetLabel("Playing...");
             }
-        } else {
-            m_btnPlay->SetLabel("Playing...");
         }
     }
 }
@@ -704,8 +789,7 @@ void MainFrame::OnSteamPollTimer(wxTimerEvent&) {
                 Log("Options file: " + wxString::FromUTF8(m_isaacInfo.optionsIniPath.string().c_str()));
             }
 
-            m_btnPlay->Enable(m_isaacInfo.valid);
-            m_btnPlay->SetLabel("Launch game");
+            UpdatePlayButtonState();
             SetStatusText("Ready", 0);
             SetStatusText(m_isaacInfo.valid ? "Isaac: " + m_isaacInfo.detectedVersion : "Isaac Not Found", 1);
         }
@@ -775,7 +859,7 @@ void MainFrame::OnBrowseExeClicked(wxCommandEvent&) {
         m_isaacInfo = newInfo;
         m_isaacPathText->SetForegroundColour(*wxBLACK);
         m_isaacPathText->SetValue(wxString::FromUTF8(m_isaacInfo.executablePath.string().c_str()));
-        m_btnPlay->Enable(true);
+        UpdatePlayButtonState();
 
         if (m_launcherConfig) {
             m_launcherConfig->SetCustomIsaacPath(m_isaacInfo.executablePath.string());
