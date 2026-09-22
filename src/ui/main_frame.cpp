@@ -444,6 +444,10 @@ void MainFrame::OnInterpolationClicked(wxCommandEvent&) {
 void MainFrame::OnOpenModManagerClicked(wxCommandEvent&) {
     if (!m_modManagerFrame) {
         m_modManagerFrame = new ModManagerFrame(this, m_modMgr);
+        m_modManagerFrame->Bind(wxEVT_DESTROY, [this](wxWindowDestroyEvent& event) {
+            m_modManagerFrame = nullptr;
+            event.Skip();
+        });
     }
     m_modManagerFrame->RefreshMods();
     m_modManagerFrame->Show();

@@ -15,7 +15,18 @@ ModManagerFrame::ModManagerFrame(wxWindow* parent, std::shared_ptr<ModManager> m
     sizer->Add(m_modsPanel, 1, wxEXPAND | wxALL, 6);
     SetSizer(sizer);
 
+    Bind(wxEVT_CLOSE_WINDOW, &ModManagerFrame::OnClose, this);
+
     CenterOnParent();
+}
+
+void ModManagerFrame::OnClose(wxCloseEvent& event) {
+    if (event.CanVeto()) {
+        event.Veto();
+        Hide();
+    } else {
+        event.Skip();
+    }
 }
 
 void ModManagerFrame::RefreshMods() {

@@ -49,6 +49,7 @@ private:
 
     std::atomic<bool> m_cancelRequested{false};
     std::atomic<bool> m_cancelDownloads{false};
+    std::thread m_workerThread;
 
     wxDECLARE_EVENT_TABLE();
 };
@@ -76,6 +77,7 @@ private:
     wxButton* m_btnCancel = nullptr;
     std::unique_ptr<wxTimer> m_timer;
     std::atomic<bool> m_cancelRequested{false};
+    std::thread m_workerThread;
 };
 
 } // namespace TBOI

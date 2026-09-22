@@ -186,13 +186,17 @@ ModUpdateDialog::ModUpdateDialog(
     m_timer = std::make_unique<wxTimer>(this, ID_MODUPDATE_TIMER);
     m_timer->Start(100);
 
-    std::thread(&ModUpdateDialog::MainProc, this).detach();
+    m_workerThread = std::thread(&ModUpdateDialog::MainProc, this);
 }
 
 ModUpdateDialog::~ModUpdateDialog() {
     m_cancelRequested = true;
+    m_cancelDownloads = true;
     if (m_timer) {
         m_timer->Stop();
+    }
+    if (m_workerThread.joinable()) {
+        m_workerThread.join();
     }
 }
 
@@ -615,7 +619,7 @@ ModManagerReinstallDialog::ModManagerReinstallDialog(
         wxMessageBox("Cannot reinstall mod - Steam is not available!", "TBOI: Launcher", wxOK | wxICON_ERROR, this);
         EndModal(wxID_OK);
     } else {
-        std::thread(&ModManagerReinstallDialog::MainProc, this).detach();
+        m_workerThread = std::thread(&ModManagerReinstallDialog::MainProc, this);
     }
 }
 
@@ -623,6 +627,9 @@ ModManagerReinstallDialog::~ModManagerReinstallDialog() {
     m_cancelRequested = true;
     if (m_timer) {
         m_timer->Stop();
+    }
+    if (m_workerThread.joinable()) {
+        m_workerThread.join();
     }
 }
 

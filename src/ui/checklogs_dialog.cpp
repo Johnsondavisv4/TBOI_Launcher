@@ -31,10 +31,8 @@ CheckLogsDialog::CheckLogsDialog(
 void CheckLogsDialog::BuildUI() {
     auto* mainSizer = new wxBoxSizer(wxVERTICAL);
 
-    int labelWidth, labelHeight;
-    auto* measureText = new wxStaticText(this, wxID_ANY, "The Binding of Isaac Game Log (log.txt):  ");
-    measureText->GetTextExtent("The Binding of Isaac Game Log (log.txt):  ", &labelWidth, &labelHeight);
-    delete measureText;
+    int labelWidth = 0, labelHeight = 0;
+    GetTextExtent("The Binding of Isaac Game Log (log.txt):  ", &labelWidth, &labelHeight);
 
     // Row 1: Launcher log
     auto* row1 = new wxBoxSizer(wxHORIZONTAL);

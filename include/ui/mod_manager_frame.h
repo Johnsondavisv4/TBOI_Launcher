@@ -16,6 +16,8 @@ public:
     void RefreshMods();
 
 private:
+    void OnClose(wxCloseEvent& event);
+
     std::shared_ptr<ModManager> m_modMgr;
     ModsPanel* m_modsPanel = nullptr;
 };
