@@ -33,6 +33,7 @@ private:
     wxStaticText* m_modTypeBadge = nullptr;
     wxTextCtrl* m_modDescText = nullptr;
     wxButton* m_btnReinstall = nullptr;
+    wxButton* m_btnInstallMissing = nullptr;
 
     void OnItemToggled(wxCommandEvent& event);
     void OnItemSelected(wxCommandEvent& event);
@@ -42,6 +43,7 @@ private:
     void OnOpenFolder(wxCommandEvent& event);
     void OnRefresh(wxCommandEvent& event);
     void OnReinstall(wxCommandEvent& event);
+    void OnInstallMissingMods(wxCommandEvent& event);
 
     wxDECLARE_EVENT_TABLE();
 };

@@ -170,6 +170,7 @@ int main() {
     assert(modMgr.GetMods().size() == 1);
     assert(modMgr.GetMods()[0].name == "Cool Test Mod");
     assert(modMgr.GetMods()[0].isEnabled == true);
+    assert(modMgr.GetMods()[0].isInstalled == true);
 
     // Toggle disable.it
     assert(modMgr.SetModEnabled("cool_mod_12345", false));
@@ -179,6 +180,8 @@ int main() {
     assert(modMgr.SetModEnabled("cool_mod_12345", true));
     assert(!fs::exists(tempMods / "cool_mod_12345" / "disable.it"));
     fs::remove_all(tempMods);
+
+    std::cout << "[TEST] ModManager ScanMods, isInstalled & Toggle disable.it: PASSED\n";
 
     // Test ModManager::SeedDefaultData
     fs::path tempTplData = "test_tpl_data";

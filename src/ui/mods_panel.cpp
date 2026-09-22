@@ -12,12 +12,12 @@ namespace TBOI {
 
 namespace fs = std::filesystem;
 
-
 enum {
     ID_MOD_SEARCH = wxID_HIGHEST + 300,
     ID_MOD_CHECKLIST,
     ID_BTN_MOD_ENABLE_ALL,
     ID_BTN_MOD_DISABLE_ALL,
+    ID_BTN_MOD_INSTALL_MISSING,
     ID_BTN_MOD_OPEN_FOLDER,
     ID_BTN_MOD_REFRESH,
     ID_BTN_MOD_REINSTALL
@@ -29,6 +29,7 @@ wxBEGIN_EVENT_TABLE(ModsPanel, wxPanel)
     EVT_TEXT(ID_MOD_SEARCH, ModsPanel::OnSearchUpdated)
     EVT_BUTTON(ID_BTN_MOD_ENABLE_ALL, ModsPanel::OnEnableAll)
     EVT_BUTTON(ID_BTN_MOD_DISABLE_ALL, ModsPanel::OnDisableAll)
+    EVT_BUTTON(ID_BTN_MOD_INSTALL_MISSING, ModsPanel::OnInstallMissingMods)
     EVT_BUTTON(ID_BTN_MOD_OPEN_FOLDER, ModsPanel::OnOpenFolder)
     EVT_BUTTON(ID_BTN_MOD_REFRESH, ModsPanel::OnRefresh)
     EVT_BUTTON(ID_BTN_MOD_REINSTALL, ModsPanel::OnReinstall)
@@ -103,10 +104,12 @@ void ModsPanel::BuildUI() {
     auto* bottomSizer = new wxBoxSizer(wxHORIZONTAL);
     auto* btnEnableAll = new wxButton(this, ID_BTN_MOD_ENABLE_ALL, "Enable All");
     auto* btnDisableAll = new wxButton(this, ID_BTN_MOD_DISABLE_ALL, "Disable All");
+    m_btnInstallMissing = new wxButton(this, ID_BTN_MOD_INSTALL_MISSING, "Install Missing Mods");
     auto* btnOpenFolder = new wxButton(this, ID_BTN_MOD_OPEN_FOLDER, "Open Mods Folder");
 
     bottomSizer->Add(btnEnableAll, 0, wxRIGHT, 6);
     bottomSizer->Add(btnDisableAll, 0, wxRIGHT, 6);
+    bottomSizer->Add(m_btnInstallMissing, 0, wxRIGHT, 6);
     bottomSizer->AddStretchSpacer(1);
     bottomSizer->Add(btnOpenFolder, 0);
 
@@ -120,6 +123,17 @@ void ModsPanel::RefreshModList() {
     if (!m_modMgr) return;
     m_modMgr->ScanMods(m_modMgr->GetModsDirectory());
     FilterList(m_searchCtrl ? m_searchCtrl->GetValue() : wxString(""));
+
+    if (m_btnInstallMissing) {
+        size_t missingCount = m_modMgr->GetMissingSubscribedCount();
+        if (missingCount > 0) {
+            m_btnInstallMissing->SetLabel(wxString::Format("Install Missing Mods (%zu)", missingCount));
+            m_btnInstallMissing->Enable(true);
+        } else {
+            m_btnInstallMissing->SetLabel("Install Missing Mods");
+            m_btnInstallMissing->Enable(false);
+        }
+    }
 }
 
 void ModsPanel::FilterList(const wxString& query) {
@@ -137,9 +151,15 @@ void ModsPanel::FilterList(const wxString& query) {
 
         if (qLower.IsEmpty() || nameStr.Lower().Contains(qLower) || dirStr.Lower().Contains(qLower)) {
             m_filteredMods.push_back(mod);
-            wxString itemLabel = (mod.isLocal ? wxString("[Local] ") : wxString("")) + nameStr;
+            wxString prefix;
+            if (mod.isLocal) {
+                prefix = "[Local] ";
+            } else if (!mod.isInstalled) {
+                prefix = "[Not Installed] ";
+            }
+            wxString itemLabel = prefix + nameStr;
             int idx = m_modList->Append(itemLabel);
-            m_modList->Check(idx, mod.isEnabled);
+            m_modList->Check(idx, mod.isInstalled && mod.isEnabled);
         }
     }
 
@@ -163,15 +183,39 @@ void ModsPanel::UpdateDetails(int selectedIndex) {
 
     const auto& mod = m_filteredMods[selectedIndex];
     m_modNameLabel->SetLabel(wxString::FromUTF8(mod.name.c_str()));
-    m_modTypeBadge->SetLabel(mod.isLocal ? wxString("Local / Non-Steam Mod") : wxString("Steam Workshop Mod"));
+
+    if (mod.isLocal) {
+        m_modTypeBadge->SetLabel("Local / Non-Steam Mod");
+        m_modTypeBadge->SetForegroundColour(*wxBLACK);
+    } else if (mod.isInstalled) {
+        if (mod.isSubscribed) {
+            m_modTypeBadge->SetLabel("Steam Workshop Mod (Installed)");
+            m_modTypeBadge->SetForegroundColour(wxColour(0, 130, 0));
+        } else {
+            m_modTypeBadge->SetLabel("Steam Workshop Mod (Installed - Unsubscribed)");
+            m_modTypeBadge->SetForegroundColour(wxColour(120, 120, 120));
+        }
+    } else {
+        m_modTypeBadge->SetLabel("Steam Workshop Mod (Not Installed Locally)");
+        m_modTypeBadge->SetForegroundColour(wxColour(200, 100, 0));
+    }
+
     m_modFolderLabel->SetLabel("Folder: " + wxString::FromUTF8(mod.directoryName.c_str()));
     m_modIdLabel->SetLabel(mod.id.empty() ? wxString("Workshop ID: N/A") : wxString("Workshop ID: ") + wxString::FromUTF8(mod.id.c_str()));
     m_modDescText->SetValue(wxString::FromUTF8(mod.description.c_str()));
 
     bool isWorkshop = !mod.id.empty() && !mod.isLocal;
     if (m_btnReinstall) {
-        m_btnReinstall->Enable(isWorkshop);
-        m_btnReinstall->SetLabel(isWorkshop ? "Reinstall / Update Mod" : "Reinstall (Non-Workshop Mod)");
+        if (!mod.isInstalled && isWorkshop) {
+            m_btnReinstall->Enable(true);
+            m_btnReinstall->SetLabel("Install Mod");
+        } else if (mod.isInstalled && isWorkshop) {
+            m_btnReinstall->Enable(true);
+            m_btnReinstall->SetLabel("Reinstall / Update Mod");
+        } else {
+            m_btnReinstall->Enable(false);
+            m_btnReinstall->SetLabel("Reinstall (Non-Workshop Mod)");
+        }
     }
 }
 
@@ -180,19 +224,23 @@ void ModsPanel::OnReinstall(wxCommandEvent&) {
     if (sel >= 0 && sel < static_cast<int>(m_filteredMods.size())) {
         const auto& mod = m_filteredMods[sel];
         if (!mod.id.empty() && !mod.isLocal) {
-            int res = wxMessageBox(
-                wxString::Format("Would you like to reinstall \"%s\"?\n\nThis will delete the mod files and attempt to redownload the latest version from the Steam workshop.", wxString::FromUTF8(mod.name.c_str())),
-                "TBOI: Launcher",
-                wxYES_NO | wxICON_QUESTION,
-                this
-            );
-            if (res != wxYES) {
-                return;
+            if (mod.isInstalled) {
+                int res = wxMessageBox(
+                    wxString::Format("Would you like to reinstall \"%s\"?\n\nThis will delete the mod files and attempt to redownload the latest version from the Steam workshop.", wxString::FromUTF8(mod.name.c_str())),
+                    "TBOI: Launcher",
+                    wxYES_NO | wxICON_QUESTION,
+                    this
+                );
+                if (res != wxYES) {
+                    return;
+                }
             }
 
             try {
                 PublishedFileId_t fileId = std::stoull(mod.id);
-                ModManagerReinstallDialog(this, fileId, mod.name).ShowModal();
+                if (mod.isInstalled) {
+                    ModManagerReinstallDialog(this, fileId, mod.name).ShowModal();
+                }
                 if (m_modMgr) {
                     fs::path modFolder = m_modMgr->GetModsDirectory() / mod.directoryName;
                     std::ofstream(modFolder / "Update.it");
@@ -204,11 +252,46 @@ void ModsPanel::OnReinstall(wxCommandEvent&) {
     }
 }
 
+void ModsPanel::OnInstallMissingMods(wxCommandEvent&) {
+    if (!m_modMgr) return;
+    size_t missingCount = m_modMgr->GetMissingSubscribedCount();
+    if (missingCount == 0) {
+        wxMessageBox("All subscribed mods are already installed in your local mods folder.", "Mods Up To Date", wxOK | wxICON_INFORMATION, this);
+        return;
+    }
+
+    ModUpdateDialog updateDlg(this, m_modMgr->GetModsDirectory(), 0);
+    updateDlg.ShowModal();
+    RefreshModList();
+}
+
 void ModsPanel::OnItemToggled(wxCommandEvent& event) {
     int idx = event.GetInt();
     if (idx >= 0 && idx < static_cast<int>(m_filteredMods.size())) {
-        bool checked = m_modList->IsChecked(idx);
         auto& mod = m_filteredMods[idx];
+        if (!mod.isInstalled) {
+            m_modList->Check(idx, false);
+            int res = wxMessageBox(
+                wxString::Format("\"%s\" is not installed locally.\n\nWould you like to install it now?", wxString::FromUTF8(mod.name.c_str())),
+                "Install Mod",
+                wxYES_NO | wxICON_QUESTION,
+                this
+            );
+            if (res == wxYES) {
+                try {
+                    PublishedFileId_t fileId = std::stoull(mod.id);
+                    if (m_modMgr) {
+                        fs::path modFolder = m_modMgr->GetModsDirectory() / mod.directoryName;
+                        std::ofstream(modFolder / "Update.it");
+                        ModUpdateDialog(this, m_modMgr->GetModsDirectory(), fileId).ShowModal();
+                        RefreshModList();
+                    }
+                } catch (...) {}
+            }
+            return;
+        }
+
+        bool checked = m_modList->IsChecked(idx);
         m_modMgr->SetModEnabled(mod.directoryName, checked);
         mod.isEnabled = checked;
     }

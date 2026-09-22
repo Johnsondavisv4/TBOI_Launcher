@@ -15,6 +15,8 @@ struct ModInfo {
     std::string version;
     bool isEnabled = true;
     bool isLocal = false;
+    bool isInstalled = true;
+    bool isSubscribed = false;
     std::filesystem::path fullPath;
 };
 
@@ -25,6 +27,7 @@ public:
 
     bool ScanMods(const std::filesystem::path& modsDir);
     const std::vector<ModInfo>& GetMods() const { return m_mods; }
+    size_t GetMissingSubscribedCount() const;
     
     bool SetModEnabled(const std::string& directoryName, bool enabled);
     bool EnableAll();
