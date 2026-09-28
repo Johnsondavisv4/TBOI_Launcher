@@ -3,6 +3,9 @@ out/
 .vs/
 .vscode/
 .idea/
+*.user
+CMakeUserPresets.json
 
+*.log
 Thumbs.db
 .DS_Store
