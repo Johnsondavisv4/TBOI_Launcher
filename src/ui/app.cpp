@@ -312,17 +312,6 @@ bool LauncherApp::OnInit() {
     m_launcherConfig = std::make_shared<LauncherConfig>();
     m_launcherConfig->Load(LauncherConfig::GetDefaultConfigPath());
 
-    bool isDeckOrBigPicture = false;
-    if (isSteamActive && SteamUtils()) {
-        isDeckOrBigPicture = SteamUtils()->IsSteamInBigPictureMode() || SteamUtils()->IsSteamRunningOnSteamDeck();
-    }
-
-    if (isDeckOrBigPicture) {
-        m_cliStealthMode = true;
-    }
-
-    bool effectiveStealth = m_cliStealthMode || m_launcherConfig->GetStealthMode();
-
     // 3. Detect Isaac (Priority: CLI/Steam -> Previously saved config -> Auto-detection in Steam Library)
     IsaacInstallationInfo isaacInfo;
     bool foundValidIsaac = false;
@@ -404,15 +393,9 @@ bool LauncherApp::OnInit() {
     );
     SetTopWindow(frame);
 
-    if (isSteamActive) {
-        if (isDeckOrBigPicture) {
-            frame->Log("Steam Big Picture / Steam Deck detected. Stealth Mode automatically engaged.");
-        }
-    }
-
     // 8. Handle Stealth Mode Launch vs Normal UI Launch (REPENTOGON style)
     if (isSteamActive && m_cliStealthMode) {
-        // Direct launch from Steam / CLI / BigPicture (skip countdown)
+        // Direct launch from Steam / CLI argument (skip countdown)
         frame->Show(false);
         frame->LaunchGameWithMonitoring(true);
     } else if (isSteamActive && m_launcherConfig->GetStealthMode()) {

@@ -326,7 +326,7 @@ void MainFrame::AddLauncherConfigurationOptions(wxSizer* sizer, wxWindow* parent
     sizer->Add(verRow, 0, wxEXPAND | wxTOP | wxLEFT | wxRIGHT, 6);
 
     // Row 3: Stealth Mode Checkbox
-    m_chkStealthMode = new wxCheckBox(parentBox, ID_CHK_STEALTH, "Stealth Mode (Always ON in BigPicture mode and Steam Deck)");
+    m_chkStealthMode = new wxCheckBox(parentBox, ID_CHK_STEALTH, "Stealth Mode");
     m_chkStealthMode->SetValue(m_launcherConfig->GetStealthMode());
     m_chkStealthMode->SetToolTip("When starting the launcher, skip the main window and automatically launch Isaac, then close the launcher afterwards.\n\nThe launcher will appear if an error occurs.");
     sizer->Add(m_chkStealthMode, 0, wxALL, 6);
