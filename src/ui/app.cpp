@@ -376,8 +376,9 @@ bool LauncherApp::OnInit() {
             ModManager::SeedDefaultData(dataTemplate, isaacInfo.rootDirectory / "data");
         }
 
-        if (fs::exists(isaacInfo.modsDirectory)) {
-            m_modMgr->ScanMods(isaacInfo.modsDirectory);
+        if (!m_modMgr->ScanMods(isaacInfo.modsDirectory)) {
+            wxMessageBox("Could not create or access the game's mods folder. Check write permissions in the game installation directory.",
+                         "Mod Manager", wxOK | wxICON_ERROR);
         }
     }
 

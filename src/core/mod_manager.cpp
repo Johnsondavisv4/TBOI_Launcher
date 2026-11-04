@@ -63,13 +63,25 @@ size_t ModManager::GetMissingSubscribedCount() const {
 }
 
 bool ModManager::ScanMods(const fs::path& modsDir) {
-    m_modsDir = modsDir;
     m_mods.clear();
+    if (modsDir.empty()) {
+        m_modsDir.clear();
+        return false;
+    }
+    std::error_code ec;
+    fs::path resolvedDir = fs::absolute(modsDir, ec);
+    if (ec) {
+        m_modsDir.clear();
+        return false;
+    }
+    m_modsDir = resolvedDir;
+    fs::create_directories(m_modsDir, ec);
+    if (ec || !fs::is_directory(m_modsDir, ec) || ec) return false;
 
     std::unordered_set<uint64_t> localWorkshopIds;
 
-    if (fs::exists(modsDir) && fs::is_directory(modsDir)) {
-        for (const auto& entry : fs::directory_iterator(modsDir)) {
+    if (fs::exists(m_modsDir) && fs::is_directory(m_modsDir)) {
+        for (const auto& entry : fs::directory_iterator(m_modsDir)) {
             if (entry.is_directory()) {
                 ModInfo mod;
                 mod.directoryName = entry.path().filename().string();

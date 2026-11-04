@@ -16,6 +16,11 @@ bool ProcessInjector::LaunchWithRedirect(
     HANDLE* outProcessHandle,
     DWORD* outPid
 ) {
+    if (outProcessHandle) *outProcessHandle = nullptr;
+    if (outPid) *outPid = 0;
+    std::error_code ec;
+    fs::path absDll = fs::absolute(redirectDllPath, ec);
+    if (redirectDllPath.empty() || ec || !fs::is_regular_file(absDll, ec) || ec) return false;
     if (!fs::exists(exePath)) {
         return false;
     }
@@ -43,8 +48,9 @@ bool ProcessInjector::LaunchWithRedirect(
     if (!additionalArgs.empty()) {
         int len = MultiByteToWideChar(CP_UTF8, 0, additionalArgs.c_str(), -1, nullptr, 0);
         if (len > 0) {
-            std::wstring wideArgs(len - 1, L'\0');
+            std::wstring wideArgs(len, L'\0');
             MultiByteToWideChar(CP_UTF8, 0, additionalArgs.c_str(), -1, wideArgs.data(), len);
+            wideArgs.resize(len - 1);
             cmdLine += L" " + wideArgs;
         }
     }
@@ -72,35 +78,38 @@ bool ProcessInjector::LaunchWithRedirect(
         return false;
     }
 
-    // 2. Inject tboi_redirect.dll if provided and exists
-    std::error_code ec;
-    fs::path absDll = fs::absolute(redirectDllPath, ec);
-    if (!ec && fs::exists(absDll)) {
-        std::wstring fullDllPath = absDll.wstring();
-        size_t dllPathBytes = (fullDllPath.size() + 1) * sizeof(wchar_t);
+    // Any injection failure terminates our still-suspended child. Do not free
+    // remote memory on timeout: LoadLibraryW may still be reading it.
+    auto abortLaunch = [&]() {
+        TerminateProcess(pi.hProcess, ERROR_DLL_INIT_FAILED);
+        WaitForSingleObject(pi.hProcess, 5000);
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        return false;
+    };
+    std::wstring fullDllPath = absDll.wstring();
+    size_t dllPathBytes = (fullDllPath.size() + 1) * sizeof(wchar_t);
+    void* remoteMem = VirtualAllocEx(pi.hProcess, nullptr, dllPathBytes,
+                                     MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (!remoteMem) return abortLaunch();
+    SIZE_T written = 0;
+    if (!WriteProcessMemory(pi.hProcess, remoteMem, fullDllPath.c_str(), dllPathBytes, &written)
+        || written != dllPathBytes) return abortLaunch();
+    HMODULE kernel = GetModuleHandleW(L"kernel32.dll");
+    auto loadLibrary = kernel ? reinterpret_cast<LPTHREAD_START_ROUTINE>(
+        GetProcAddress(kernel, "LoadLibraryW")) : nullptr;
+    if (!loadLibrary) return abortLaunch();
+    HANDLE thread = CreateRemoteThread(pi.hProcess, nullptr, 0, loadLibrary, remoteMem, 0, nullptr);
+    if (!thread) return abortLaunch();
+    DWORD waitResult = WaitForSingleObject(thread, 5000);
+    DWORD module = 0;
+    bool loaded = waitResult == WAIT_OBJECT_0 && GetExitCodeThread(thread, &module) && module != 0;
+    CloseHandle(thread);
+    if (!loaded) return abortLaunch();
+    VirtualFreeEx(pi.hProcess, remoteMem, 0, MEM_RELEASE);
 
-        void* remoteMem = VirtualAllocEx(pi.hProcess, NULL, dllPathBytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        if (remoteMem) {
-            SIZE_T written = 0;
-            if (WriteProcessMemory(pi.hProcess, remoteMem, fullDllPath.c_str(), dllPathBytes, &written)) {
-                HMODULE hKernel = GetModuleHandleW(L"kernel32.dll");
-                if (hKernel) {
-                    LPTHREAD_START_ROUTINE pLoadLibraryW = (LPTHREAD_START_ROUTINE)GetProcAddress(hKernel, "LoadLibraryW");
-                    if (pLoadLibraryW) {
-                        HANDLE hRemoteThread = CreateRemoteThread(pi.hProcess, NULL, 0, pLoadLibraryW, remoteMem, 0, NULL);
-                        if (hRemoteThread) {
-                            WaitForSingleObject(hRemoteThread, 5000);
-                            CloseHandle(hRemoteThread);
-                        }
-                    }
-                }
-            }
-            VirtualFreeEx(pi.hProcess, remoteMem, 0, MEM_RELEASE);
-        }
-    }
-
-    // 3. Resume main thread
-    ResumeThread(pi.hThread);
+    // Resume only after the redirect DLL has loaded successfully.
+    if (ResumeThread(pi.hThread) == static_cast<DWORD>(-1)) return abortLaunch();
     CloseHandle(pi.hThread);
 
     if (outPid) {

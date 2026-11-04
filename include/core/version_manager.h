@@ -15,7 +15,7 @@ struct VersionDefinition {
     std::string requiredBaseVersion;        // e.g. "v1.9.7.17.J460" from version.txt (base version requirement)
     std::string expectedExeHash;            // SHA256 from exehash.txt
     bool isVanilla = false;
-    bool isReady = false;                   // True if exe exists and is verified
+    bool isReady = false;                   // Completed preparation with a matching executable hash
     std::filesystem::path targetDirectory;  // e.g. <base>/versions/v1.9.7.15
     std::filesystem::path patchDirectory;   // e.g. <base>/patch/v1.9.7.15
 };

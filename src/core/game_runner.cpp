@@ -15,13 +15,18 @@ namespace fs = std::filesystem;
 
 bool GameRunner::EnsureSteamAppId(const fs::path& targetDir) {
     fs::path appIdFile = targetDir / "steam_appid.txt";
-    if (!fs::exists(appIdFile)) {
+    std::ifstream existing(appIdFile);
+    std::string appId;
+    existing >> appId;
+    existing.close();
+    if (appId != "250900") {
         std::ofstream ofs(appIdFile);
         if (!ofs.is_open()) {
             return false;
         }
         ofs << "250900\n";
         ofs.close();
+        if (!ofs) return false;
     }
     return true;
 }

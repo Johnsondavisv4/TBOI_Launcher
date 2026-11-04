@@ -356,6 +356,19 @@ bool ModUpdateDialog::SteamDownloadNWait(int* overallPct, uint64_t id, const std
 }
 
 void ModUpdateDialog::MainProc() {
+    // Never interpret an unset destination as the launcher's working directory.
+    std::error_code ec;
+    if (m_targetModsDir.empty() || !m_targetModsDir.is_absolute()) {
+        PostProgressEvent(0, "ERROR: No valid game mods folder is configured.");
+        PostProgressEvent(0, "FINISH: update process finished.");
+        return;
+    }
+    fs::create_directories(m_targetModsDir, ec);
+    if (ec || !fs::is_directory(m_targetModsDir, ec) || ec) {
+        PostProgressEvent(0, "ERROR: Cannot create or access the game's mods folder.");
+        PostProgressEvent(0, "FINISH: update process finished.");
+        return;
+    }
     if (!SteamAPI_Init()) {
         PostProgressEvent(0, "ERROR: Failed to initialize Steam API");
         PostProgressEvent(0, "FINISH: update process finished.");

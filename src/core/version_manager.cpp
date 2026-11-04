@@ -16,7 +16,7 @@ VersionManager::VersionManager() = default;
 VersionManager::~VersionManager() = default;
 
 std::vector<std::string> VersionManager::GetCopyExclusions() {
-    return { "mods", "data", "dinput8.dll", "interpol.ini" };
+    return { "mods", "data", "versions", "dinput8.dll", "interpol.ini" };
 }
 
 static std::string ToLowerA(std::string s) {
@@ -40,20 +40,29 @@ bool VersionManager::CopySteamBaseFiles(
     const fs::path& srcSteamDir,
     const fs::path& dstVersionDir,
     std::function<void(int pct, const std::string& msg)> progressCb
-) {
+) try {
     if (!fs::exists(srcSteamDir) || !fs::is_directory(srcSteamDir)) {
         if (progressCb) progressCb(0, "Error: Steam installation directory not found.");
         return false;
     }
 
     std::error_code ec;
+    const auto source = fs::weakly_canonical(srcSteamDir);
+    const auto destination = fs::weakly_canonical(dstVersionDir);
+    if (source == destination) return false;
     fs::create_directories(dstVersionDir, ec);
+    if (ec) {
+        if (progressCb) progressCb(0, "Error creating version directory: " + ec.message());
+        return false;
+    }
 
     // Count total files for progress reporting
     std::vector<fs::path> filesToCopy;
-    for (const auto& entry : fs::recursive_directory_iterator(srcSteamDir, fs::directory_options::skip_permission_denied, ec)) {
-        fs::path rel = fs::relative(entry.path(), srcSteamDir);
-        if (IsExcluded(rel)) {
+    for (fs::recursive_directory_iterator it(srcSteamDir), end; it != end; ++it) {
+        const auto& entry = *it;
+        fs::path rel = entry.path().lexically_relative(srcSteamDir);
+        if (IsExcluded(rel) || fs::weakly_canonical(entry.path()) == destination) {
+            if (entry.is_directory()) it.disable_recursion_pending();
             continue;
         }
         if (entry.is_regular_file()) {
@@ -69,7 +78,15 @@ bool VersionManager::CopySteamBaseFiles(
         fs::path dst = dstVersionDir / rel;
 
         fs::create_directories(dst.parent_path(), ec);
+        if (ec) {
+            if (progressCb) progressCb(0, "Error creating destination directory: " + ec.message());
+            return false;
+        }
         fs::copy_file(src, dst, fs::copy_options::overwrite_existing, ec);
+        if (ec) {
+            if (progressCb) progressCb(0, "Error copying " + rel.string() + ": " + ec.message());
+            return false;
+        }
 
         ++current;
         if (progressCb && (current % 10 == 0 || current == total)) {
@@ -79,6 +96,19 @@ bool VersionManager::CopySteamBaseFiles(
     }
 
     return true;
+} catch (const fs::filesystem_error& error) {
+    if (progressCb) progressCb(0, "Error copying base files: " + std::string(error.what()));
+    return false;
+}
+
+static constexpr const char* READY_FILE = ".tboi-ready";
+
+static bool IsPrepared(const fs::path& directory, const std::string& version) {
+    std::ifstream marker(directory / READY_FILE);
+    std::string savedVersion, savedHash;
+    if (!(marker >> savedVersion >> savedHash) || savedVersion != version) return false;
+    const auto hash = DiffPatcher::CalculateSha256(directory / "isaac-ng.exe");
+    return !hash.empty() && hash == savedHash;
 }
 
 bool VersionManager::ScanVersions(
@@ -133,7 +163,7 @@ bool VersionManager::ScanVersions(
 
                     // Check if version is already prepared in versions/<id>/
                     fs::path targetExe = def.targetDirectory / "isaac-ng.exe";
-                    def.isReady = fs::exists(targetExe);
+                    def.isReady = fs::is_regular_file(targetExe) && IsPrepared(def.targetDirectory, verId);
 
                     m_versions.push_back(def);
                 }
@@ -171,7 +201,7 @@ bool VersionManager::PrepareVersion(
     const std::string& versionId,
     const IsaacInstallationInfo& steamInfo,
     std::function<void(int pct, const std::string& msg)> progressCb
-) {
+) try {
     auto verOpt = FindVersion(versionId);
     if (!verOpt) {
         if (progressCb) progressCb(0, "Error: Unknown version: " + versionId);
@@ -206,7 +236,18 @@ bool VersionManager::PrepareVersion(
         }
     }
 
-    // 1. Copy base Steam files (excluding mods, data, dinput8.dll, interpol.ini)
+    // Invalidate readiness before modifying files. Interrupted preparations stay unready.
+    for (auto& v : m_versions) {
+        if (v.id == versionId) v.isReady = false;
+    }
+    std::error_code ec;
+    fs::remove(targetDir / READY_FILE, ec);
+    if (ec) {
+        if (progressCb) progressCb(0, "Error removing readiness marker: " + ec.message());
+        return false;
+    }
+
+    // 1. Copy base files, excluding shared folders and prepared versions.
     if (progressCb) progressCb(5, "Cloning base game files from Steam...");
     if (!CopySteamBaseFiles(steamInfo.rootDirectory, targetDir, progressCb)) {
         return false;
@@ -220,7 +261,20 @@ bool VersionManager::PrepareVersion(
 
     // 3. Ensure steam_appid.txt = 250900
     if (progressCb) progressCb(98, "Writing steam_appid.txt...");
-    GameRunner::EnsureSteamAppId(targetDir);
+    if (!GameRunner::EnsureSteamAppId(targetDir)) {
+        if (progressCb) progressCb(0, "Error writing steam_appid.txt.");
+        return false;
+    }
+    const auto hash = DiffPatcher::CalculateSha256(targetDir / "isaac-ng.exe");
+    if (hash.empty()) return false;
+    std::ofstream marker(targetDir / READY_FILE, std::ios::trunc);
+    marker << versionId << '\n' << hash << '\n';
+    marker.close();
+    if (!marker) {
+        fs::remove(targetDir / READY_FILE, ec);
+        if (progressCb) progressCb(0, "Error writing readiness marker.");
+        return false;
+    }
 
     // Update in-memory readiness
     for (auto& v : m_versions) {
@@ -232,6 +286,9 @@ bool VersionManager::PrepareVersion(
 
     if (progressCb) progressCb(100, "Version " + versionId + " is ready to play!");
     return true;
+} catch (const fs::filesystem_error& error) {
+    if (progressCb) progressCb(0, "Error preparing version: " + std::string(error.what()));
+    return false;
 }
 
 } // namespace TBOI

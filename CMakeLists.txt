@@ -146,6 +146,9 @@ target_link_libraries (TBOI_Launcher_Tests PRIVATE
     "${DEPS_DIR}/steamapi/lib/steam_api.lib"
 )
 add_dependencies (TBOI_Launcher_Tests tboi_redirect)
+add_library(test_slow_redirect SHARED "src/test_slow_redirect.cpp")
+add_dependencies(TBOI_Launcher_Tests test_slow_redirect)
+target_include_directories(TBOI_Launcher_Tests PRIVATE "${DEPS_DIR}/bzip2")
 
 add_custom_command(
     TARGET TBOI_Launcher_Tests POST_BUILD
@@ -168,3 +171,10 @@ add_custom_command(
         "${CMAKE_CURRENT_SOURCE_DIR}/interpolation_patch"
         "$<TARGET_FILE_DIR:TBOI_Launcher_Tests>/interpolation_patch"
 )
+
+# Verify checks in Release too, including the deliberate failure path.
+enable_testing()
+add_test(NAME Core COMMAND TBOI_Launcher_Tests)
+set_tests_properties(Core PROPERTIES WORKING_DIRECTORY "$<TARGET_FILE_DIR:TBOI_Launcher_Tests>")
+add_test(NAME ChecksRejectFailure COMMAND TBOI_Launcher_Tests --check-failure)
+set_tests_properties(ChecksRejectFailure PROPERTIES WILL_FAIL TRUE)

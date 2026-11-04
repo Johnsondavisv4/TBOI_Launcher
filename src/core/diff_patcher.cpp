@@ -219,7 +219,7 @@ bool DiffPatcher::ApplySingleFilePatch(
         oldpos += ctrl[2];
     }
 
-    return true;
+    return fflush(fNew) == 0;
 }
 
 std::string DiffPatcher::CalculateSha256(const fs::path& filePath) {
@@ -249,16 +249,21 @@ std::string DiffPatcher::CalculateSha256(const fs::path& filePath) {
         ifs.read(buffer.data(), buffer.size());
         std::streamsize bytesRead = ifs.gcount();
         if (bytesRead > 0) {
-            CryptHashData(hHash, (BYTE*)buffer.data(), (DWORD)bytesRead, 0);
+            if (!CryptHashData(hHash, (BYTE*)buffer.data(), (DWORD)bytesRead, 0)) {
+                CryptDestroyHash(hHash);
+                CryptReleaseContext(hProv, 0);
+                return "";
+            }
         }
     }
 
     DWORD hashLen = 32;
     BYTE hashVal[32] = { 0 };
-    CryptGetHashParam(hHash, HP_HASHVAL, hashVal, &hashLen, 0);
+    bool valid = !ifs.bad() && CryptGetHashParam(hHash, HP_HASHVAL, hashVal, &hashLen, 0);
 
     CryptDestroyHash(hHash);
     CryptReleaseContext(hProv, 0);
+    if (!valid) return "";
 
     std::ostringstream oss;
     for (DWORD i = 0; i < hashLen; ++i) {
@@ -295,7 +300,7 @@ bool DiffPatcher::ApplyPatch(
     const fs::path& targetFolder,
     const fs::path& patchFolder,
     std::function<void(int pct, const std::string& msg)> progressCb
-) {
+) try {
     fs::path manifestPath = patchFolder / "manifest.json";
     if (!fs::exists(manifestPath)) {
         if (progressCb) progressCb(0, "Error: manifest.json not found in " + patchFolder.string());
@@ -326,6 +331,10 @@ bool DiffPatcher::ApplyPatch(
                 fs::path toDel = targetFolder / item.GetString();
                 if (fs::exists(toDel)) {
                     fs::remove_all(toDel, ec);
+                    if (ec) {
+                        if (progressCb) progressCb(0, "Error deleting " + toDel.string() + ": " + ec.message());
+                        return false;
+                    }
                     if (progressCb) progressCb(10, "Deleted obsolete file: " + std::string(item.GetString()));
                 }
             }
@@ -341,8 +350,16 @@ bool DiffPatcher::ApplyPatch(
 
             if (fs::exists(srcFile)) {
                 fs::create_directories(dstFile.parent_path(), ec);
+                if (ec) return false;
                 fs::copy_file(srcFile, dstFile, fs::copy_options::overwrite_existing, ec);
+                if (ec) {
+                    if (progressCb) progressCb(0, "Error creating " + relPath + ": " + ec.message());
+                    return false;
+                }
                 if (progressCb) progressCb(30, "Created file: " + relPath);
+            } else {
+                if (progressCb) progressCb(0, "Error: Create source file not found: " + srcFile.string());
+                return false;
             }
         }
     }
@@ -384,13 +401,20 @@ bool DiffPatcher::ApplyPatch(
             }
 
             // Atomic replace
-            fs::remove(oldFile, ec);
-            fs::rename(tempNewFile, oldFile, ec);
+            if (!MoveFileExW(tempNewFile.c_str(), oldFile.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+                DWORD error = GetLastError();
+                fs::remove(tempNewFile, ec);
+                if (progressCb) progressCb(0, "Error replacing " + relPath + " (" + std::to_string(error) + ").");
+                return false;
+            }
         }
     }
 
     if (progressCb) progressCb(100, "Patch applied successfully!");
     return true;
+} catch (const fs::filesystem_error& error) {
+    if (progressCb) progressCb(0, "Error applying patch: " + std::string(error.what()));
+    return false;
 }
 
 } // namespace TBOI
