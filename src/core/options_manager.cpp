@@ -1,9 +1,13 @@
 #include "core/options_manager.h"
 
+#include <windows.h>
+
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <charconv>
+#include <cmath>
 #include <iostream>
 
 namespace TBOI {
@@ -17,6 +21,48 @@ static inline std::string Trim(const std::string& s) {
     if (start == std::string::npos) return "";
     auto end = s.find_last_not_of(" \t\r\n");
     return s.substr(start, end - start + 1);
+}
+
+template <typename T>
+static bool ParseNumber(const std::string& text, T& value) {
+    const char* end = text.data() + text.size();
+    const auto [ptr, error] = std::from_chars(text.data(), end, value);
+    return error == std::errc{} && ptr == end;
+}
+
+static bool IsTrue(const std::string& value) {
+    return value == "1" || value == "true" || value == "True";
+}
+
+static std::optional<std::string> ValidateTemplateValue(const OptionDefinition& opt, const std::string& value) {
+    switch (opt.type) {
+    case OptionType::Bool:
+        if (IsTrue(value)) return "1";
+        if (value == std::to_string(opt.offValue) || value == "false" || value == "False") {
+            return std::to_string(opt.offValue);
+        }
+        break;
+    case OptionType::Choice: {
+        int number;
+        if (ParseNumber(value, number) && std::ranges::any_of(opt.choices, [number](const auto& choice) {
+                return choice.value == number;
+            })) return std::to_string(number);
+        break;
+    }
+    case OptionType::Int: {
+        int number;
+        if (ParseNumber(value, number)) return value;
+        break;
+    }
+    case OptionType::Float: {
+        double number;
+        if (ParseNumber(value, number) && std::isfinite(number)) return value;
+        break;
+    }
+    case OptionType::Unknown:
+        return value;
+    }
+    return std::nullopt;
 }
 
 OptionsManager::OptionsManager() = default;
@@ -131,6 +177,34 @@ bool OptionsManager::LoadFromIni(const fs::path& iniPath) {
     return true;
 }
 
+bool OptionsManager::EnsureInitialIni(const fs::path& iniPath, const std::string& version) const {
+    if (iniPath.empty()) return false;
+
+    std::error_code ec;
+    const auto target = fs::absolute(iniPath, ec);
+    if (ec) return false;
+    if (fs::exists(target, ec)) return fs::is_regular_file(target, ec);
+    if (ec || !m_initialized) return false;
+
+    const auto directory = target.parent_path();
+    fs::create_directories(directory, ec);
+    if (ec) return false;
+
+    // Publish the completed file only if the game has not created its own INI.
+    wchar_t tempPath[MAX_PATH];
+    if (!GetTempFileNameW(directory.c_str(), L"ini", 0, tempPath)) return false;
+
+    OptionsManager defaults = *this;
+    defaults.m_values.clear();
+    defaults.SetActiveVersion(version);
+    if (defaults.SaveToIni(tempPath) && MoveFileExW(tempPath, target.c_str(), 0)) {
+        return true;
+    }
+
+    DeleteFileW(tempPath);
+    return fs::is_regular_file(target, ec);
+}
+
 bool OptionsManager::SaveToIni(const fs::path& iniPath) {
     fs::path targetPath = iniPath;
     if (targetPath.empty()) {
@@ -180,7 +254,8 @@ bool OptionsManager::SaveToIni(const fs::path& iniPath) {
         }
     }
 
-    return true;
+    file.close();
+    return !file.fail();
 }
 
 std::string OptionsManager::GetDefaultValue(const std::string& key) const {
@@ -188,33 +263,17 @@ std::string OptionsManager::GetDefaultValue(const std::string& key) const {
         return "0";
     }
 
-    if (!m_defaultTemplates.empty()) {
-        // 1. Direct match (e.g. "Language", "MusicVolume", or already resolved dynamic key)
-        auto it = m_defaultTemplates.find(key);
-        if (it != m_defaultTemplates.end()) {
-            return it->second;
-        }
+    const auto opt = FindOption(key);
+    if (!opt) return "";
 
-        // 2. Check template keys containing <VERSION> (e.g. "AcceptedPublicBeta_<VERSION>")
-        for (const auto& [tplKey, tplVal] : m_defaultTemplates) {
-            if (tplKey.find("<VERSION>") != std::string::npos) {
-                std::string resolvedTplKey = OptionsSchema::ResolveDynamicKey(tplKey, m_activeVersion);
-                if (resolvedTplKey == key) {
-                    return tplVal;
-                }
-            }
-        }
+    auto it = m_defaultTemplates.find(opt->resolvedKey);
+    if (it == m_defaultTemplates.end() && opt->isVersionDynamic) {
+        it = m_defaultTemplates.find(opt->rawKey);
     }
-
-    // 3. Fallback: look up default value in active schema options
-    auto activeOptions = GetActiveOptions();
-    for (const auto& opt : activeOptions) {
-        if (opt.resolvedKey == key || opt.rawKey == key) {
-            return opt.defaultValue;
-        }
+    if (it != m_defaultTemplates.end()) {
+        if (auto value = ValidateTemplateValue(*opt, it->second)) return *value;
     }
-
-    return "";
+    return opt->defaultValue;
 }
 
 std::string OptionsManager::GetValue(const std::string& key) const {
@@ -237,11 +296,12 @@ void OptionsManager::SetValue(const std::string& key, const std::string& value) 
 bool OptionsManager::GetBool(const std::string& key, bool fallback) const {
     std::string val = GetValue(key);
     if (val.empty()) return fallback;
-    return val == "1" || val == "true" || val == "True";
+    return IsTrue(val);
 }
 
 void OptionsManager::SetBool(const std::string& key, bool value) {
-    m_values[key] = value ? "1" : "0";
+    const auto opt = FindOption(key);
+    m_values[key] = value ? "1" : std::to_string(opt ? opt->offValue : 0);
 }
 
 int OptionsManager::GetInt(const std::string& key, int fallback) const {

@@ -2,11 +2,22 @@
 
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
 namespace TBOI {
+
+static std::set<std::string> ReadVersions(const rapidjson::Value& object, const char* key) {
+    std::set<std::string> versions;
+    if (object.HasMember(key) && object[key].IsArray()) {
+        for (const auto& value : object[key].GetArray()) {
+            if (value.IsString()) versions.insert(value.GetString());
+        }
+    }
+    return versions;
+}
 
 OptionsSchema::OptionsSchema() = default;
 OptionsSchema::~OptionsSchema() = default;
@@ -111,6 +122,11 @@ bool OptionsSchema::LoadFromFile(const std::filesystem::path& jsonPath) {
             
             std::string typeStr = optVal.HasMember("type") && optVal["type"].IsString() ? optVal["type"].GetString() : "bool";
             def.type = StringToOptionType(typeStr);
+            def.versions = ReadVersions(optVal, "versions");
+            def.toggleIn = ReadVersions(optVal, "toggle_in");
+            if (optVal.HasMember("off_value") && optVal["off_value"].IsInt()) {
+                def.offValue = optVal["off_value"].GetInt();
+            }
 
             def.category = optVal.HasMember("category") && optVal["category"].IsString() ? optVal["category"].GetString() : "other";
 
@@ -153,6 +169,7 @@ bool OptionsSchema::LoadFromFile(const std::filesystem::path& jsonPath) {
                         OptionChoice choice;
                         choice.value = choiceVal["value"].GetInt();
                         choice.label = choiceVal["label"].GetString();
+                        choice.excludedIn = ReadVersions(choiceVal, "excluded_in");
                         def.choices.push_back(choice);
                     }
                 }
@@ -167,7 +184,7 @@ bool OptionsSchema::LoadFromFile(const std::filesystem::path& jsonPath) {
 }
 
 std::set<std::string> OptionsSchema::GetUnsupportedKeysForVersion(const std::string& version) const {
-    auto it = m_versionUnsupportedKeys.find(version);
+    auto it = m_versionUnsupportedKeys.find(NormalizeVersion(version));
     if (it != m_versionUnsupportedKeys.end()) {
         return it->second;
     }
@@ -179,15 +196,25 @@ std::set<std::string> OptionsSchema::GetUnsupportedKeysForVersion(const std::str
 }
 
 std::vector<OptionDefinition> OptionsSchema::GetOptionsForVersion(const std::string& version) const {
+    const auto normalized = NormalizeVersion(version);
     std::set<std::string> unsupported = GetUnsupportedKeysForVersion(version);
     std::vector<OptionDefinition> result;
 
     for (const auto& rawDef : m_rawOptions) {
-        if (unsupported.find(rawDef.rawKey) != unsupported.end()) {
-            continue; // Skip unsupported keys for this version
+        if (unsupported.contains(rawDef.rawKey) ||
+            (!rawDef.versions.empty() && !rawDef.versions.contains(normalized))) {
+            continue;
         }
 
         OptionDefinition resolved = rawDef;
+        if (resolved.toggleIn.contains(normalized)) {
+            resolved.type = OptionType::Bool;
+            resolved.choices.clear();
+        } else {
+            std::erase_if(resolved.choices, [&](const OptionChoice& choice) {
+                return choice.excludedIn.contains(normalized);
+            });
+        }
         if (resolved.isVersionDynamic) {
             resolved.resolvedKey = ResolveDynamicKey(resolved.rawKey, version);
             resolved.label = ResolveDynamicLabel(resolved.label, version);

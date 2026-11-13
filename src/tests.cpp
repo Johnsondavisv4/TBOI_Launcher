@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <string_view>
 #include "core/process_injector.h"
 #include <filesystem>
 #include <fstream>
@@ -255,7 +256,7 @@ int main(int argc, char** argv) {
     CHECK(optMgr.GetBool("Fullscreen") == true);
 
     // Modify options and save using empty string (relies on loaded/target ini path)
-    optMgr.SetInt("Language", 0);
+    optMgr.SetBool("Fullscreen", false);
     optMgr.SetFloat("MusicVolume", 0.7500, 4);
     optMgr.SetBool("AcceptedPublicBeta_v1.9.7.15", true);
     CHECK(optMgr.SaveToIni(""));
@@ -264,7 +265,9 @@ int main(int argc, char** argv) {
     OptionsManager optMgr2;
     CHECK(optMgr2.Initialize(schemaPath, "v1.9.7.15"));
     CHECK(optMgr2.LoadFromIni(tempIni));
-    CHECK(optMgr2.GetInt("Language") == 0);
+    CHECK(optMgr2.GetInt("Language") == 4);
+    CHECK(!optMgr2.GetBool("Fullscreen"));
+    CHECK(!optMgr2.FindOption("Language"));
     CHECK(optMgr2.GetFloat("MusicVolume") == 0.75);
     CHECK(optMgr2.GetBool("AcceptedPublicBeta_v1.9.7.15") == true);
     std::cout << "[TEST] OptionsManager Read/Write/No-Auto-Inject: PASSED\n";
@@ -298,10 +301,17 @@ int main(int argc, char** argv) {
     {
         std::ofstream ofs(tempTemplateIni);
         ofs << "[Options]\n";
-        ofs << "Language=2\n";
+        ofs << "Language=4\n";
+        ofs << "PopUps=2\n";
+        ofs << "ShowRecentItems=2\n";
+        ofs << "CameraStyle=2\n";
+        ofs << "Fullscreen=3\n";
+        ofs << "WindowPosX=-120\n";
         ofs << "MusicVolume=0.3333\n";
         ofs << "AcceptedPublicBeta_<VERSION>=1\n";
         ofs << "AcceptedModDisclaimer=1\n";
+        ofs << "EnableMods=1\n";
+        ofs << "EosCrossplay=3\n";
     }
 
     OptionsManager optTplMgr;
@@ -310,7 +320,8 @@ int main(int argc, char** argv) {
     CHECK(optTplMgr.HasDefaultTemplate());
 
     // Without loading any user ini, GetValue should return the template default mapped for v1.9.7.15
-    CHECK(optTplMgr.GetInt("Language") == 2);
+    CHECK(!optTplMgr.FindOption("Language"));
+    CHECK(optTplMgr.GetDefaultValue("Language").empty());
     CHECK(optTplMgr.GetFloat("MusicVolume") == 0.3333);
     CHECK(optTplMgr.GetBool("AcceptedPublicBeta_v1.9.7.15") == true);
     CHECK(optTplMgr.GetBool("AcceptedModDisclaimer") == true);
@@ -319,6 +330,82 @@ int main(int argc, char** argv) {
     optTplMgr.SetActiveVersion("v1.9.7.17");
     CHECK(optTplMgr.GetBool("AcceptedPublicBeta_v1.9.7.17") == true);
     CHECK(optTplMgr.GetDefaultValue("AcceptedPublicBeta_v1.9.7.17") == "1");
+
+    // Starting any supported edition can seed its INI without opening the options dialog.
+    const fs::path initialOptionsRoot = "test_initial_options";
+    const struct {
+        const char* version;
+        const char* edition;
+        const char* expectedMods;
+        const char* expectedLanguage;
+        bool hasSmallPopUps;
+        bool hasEpic;
+    } initialOptionsCases[] = {
+        {"Rebirth", "Rebirth", "", "", false, false},
+        {"Afterbirth", "Afterbirth", "", "0", false, false},
+        {"Afterbirth+", "Afterbirth+", "EnableMods=0", "0", false, false},
+        {"Repentance", "Repentance", "EnableMods=0", "4", false, false},
+        {"v1.9.7.15.J374", "Repentance+", "EnableMods=1", "", true, false},
+        {"v1.9.7.17.J460", "Repentance+", "EnableMods=1", "", true, true},
+    };
+
+    optTplMgr.SetFloat("MusicVolume", 0.75);
+    for (const auto& testCase : initialOptionsCases) {
+        const auto initialIni = initialOptionsRoot /
+            (std::string("Binding of Isaac ") + testCase.edition) / "options.ini";
+        fs::remove(initialIni);
+        CHECK(optTplMgr.EnsureInitialIni(initialIni, testCase.version));
+        const auto initialOptions = ReadFile(initialIni);
+        const std::string_view edition = testCase.edition;
+        CHECK(initialOptions.find("MusicVolume=0.3333") != std::string::npos);
+        CHECK(initialOptions.find("CameraStyle=2") != std::string::npos);
+        CHECK(initialOptions.find("Fullscreen=0") != std::string::npos);
+        CHECK(initialOptions.find("WindowPosX=-120") != std::string::npos);
+        CHECK(initialOptions.find(testCase.hasSmallPopUps ? "PopUps=2" : "PopUps=1") != std::string::npos);
+        if (edition == "Rebirth") {
+            CHECK(initialOptions.find("ShowRecentItems=") == std::string::npos);
+        } else {
+            const auto expectedHud = edition.starts_with("Afterbirth") ? "ShowRecentItems=0" : "ShowRecentItems=2";
+            CHECK(initialOptions.find(expectedHud) != std::string::npos);
+        }
+        if (*testCase.expectedLanguage) {
+            CHECK(initialOptions.find(std::string("Language=") + testCase.expectedLanguage) != std::string::npos);
+        } else {
+            CHECK(initialOptions.find("Language=") == std::string::npos);
+        }
+        OptionsManager seededOptions;
+        CHECK(seededOptions.Initialize(schemaPath, testCase.version));
+        const auto popUps = seededOptions.FindOption("PopUps");
+        CHECK(popUps && popUps->type == (testCase.hasSmallPopUps ? OptionType::Choice : OptionType::Bool));
+        CHECK(seededOptions.FindOption("Language").has_value() == (*testCase.expectedLanguage != '\0'));
+        if (*testCase.expectedMods) {
+            CHECK(initialOptions.find(testCase.expectedMods) != std::string::npos);
+        } else {
+            CHECK(initialOptions.find("EnableMods=") == std::string::npos);
+        }
+        CHECK((initialOptions.find("EosCrossplay=") != std::string::npos) == testCase.hasEpic);
+        if (testCase.hasEpic) {
+            CHECK(initialOptions.find("EosCrossplay=3") != std::string::npos);
+        }
+        const std::string betaKey = "AcceptedPublicBeta_" + OptionsSchema::NormalizeVersion(testCase.version) + "=1";
+        if (edition == "Repentance+") {
+            CHECK(initialOptions.find(betaKey) != std::string::npos);
+        } else {
+            CHECK(initialOptions.find("AcceptedPublicBeta_") == std::string::npos);
+        }
+
+        const std::string existingOptions = "[Options]\nMusicVolume=0.1250\n";
+        std::ofstream(initialIni, std::ios::binary) << existingOptions;
+        CHECK(optTplMgr.EnsureInitialIni(initialIni, testCase.version));
+        CHECK(ReadFile(initialIni) == existingOptions);
+        fs::remove(initialIni);
+        fs::remove(initialIni.parent_path());
+    }
+    CHECK(optTplMgr.GetActiveVersion() == "v1.9.7.17");
+    CHECK(optTplMgr.GetFloat("MusicVolume") == 0.75);
+    optTplMgr.SetBool("CameraStyle", false);
+    CHECK(optTplMgr.GetValue("CameraStyle") == "2");
+    fs::remove(initialOptionsRoot);
 
     fs::remove(tempTemplateIni);
     std::cout << "[TEST] OptionsManager Default Template & Dynamic <VERSION> Mapping: PASSED\n";

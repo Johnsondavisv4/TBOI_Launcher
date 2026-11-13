@@ -23,6 +23,7 @@ public:
 
     bool LoadFromIni(const std::filesystem::path& iniPath);
     bool SaveToIni(const std::filesystem::path& iniPath = "");
+    bool EnsureInitialIni(const std::filesystem::path& iniPath, const std::string& version) const;
 
     void SetTargetIniPath(const std::filesystem::path& path) { m_targetIniPath = path; }
     const std::filesystem::path& GetTargetIniPath() const { return m_targetIniPath; }

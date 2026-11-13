@@ -12,6 +12,7 @@ namespace TBOI {
 struct OptionChoice {
     int value = 0;
     std::string label;
+    std::set<std::string> excludedIn;
 };
 
 enum class OptionType {
@@ -33,7 +34,10 @@ struct OptionDefinition {
     double maxVal = 100.0;
     int precision = 4;
     bool isVersionDynamic = false;
+    int offValue = 0;
     std::vector<OptionChoice> choices;
+    std::set<std::string> versions;
+    std::set<std::string> toggleIn;
     std::string introducedIn;
     std::string deprecatedIn;
 };

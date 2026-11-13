@@ -75,18 +75,19 @@
     {
       "key": "Language",
       "label": "Language",
+      "versions": ["Afterbirth", "Afterbirth+", "Repentance"],
       "type": "choice",
       "category": "gameplay",
       "default": 0,
       "choices": [
         { "value": 0, "label": "English" },
         { "value": 2, "label": "Japanese" },
-        { "value": 3, "label": "French" },
-        { "value": 4, "label": "Spanish" },
-        { "value": 5, "label": "German" },
-        { "value": 10, "label": "Russian" },
+        { "value": 3, "label": "French", "excluded_in": ["Afterbirth", "Afterbirth+"] },
+        { "value": 4, "label": "Spanish", "excluded_in": ["Afterbirth", "Afterbirth+"] },
+        { "value": 5, "label": "German", "excluded_in": ["Afterbirth", "Afterbirth+"] },
+        { "value": 10, "label": "Russian", "excluded_in": ["Afterbirth", "Afterbirth+"] },
         { "value": 11, "label": "Korean" },
-        { "value": 13, "label": "Chinese" }
+        { "value": 13, "label": "Chinese", "excluded_in": ["Afterbirth", "Afterbirth+"] }
       ]
     },
     {
@@ -179,6 +180,7 @@
       "key": "PopUps",
       "label": "PopUps",
       "type": "choice",
+      "toggle_in": ["Rebirth", "Afterbirth", "Afterbirth+", "Repentance"],
       "category": "hud",
       "default": 1,
       "choices": [
@@ -191,6 +193,7 @@
       "key": "CameraStyle",
       "label": "Active Cam",
       "type": "bool",
+      "off_value": 2,
       "category": "gameplay",
       "default": 1
     },
@@ -203,7 +206,7 @@
       "choices": [
         { "value": 0, "label": "Off" },
         { "value": 1, "label": "Normal" },
-        { "value": 2, "label": "Mini" }
+        { "value": 2, "label": "Mini", "excluded_in": ["Afterbirth", "Afterbirth+"] }
       ]
     },
     {

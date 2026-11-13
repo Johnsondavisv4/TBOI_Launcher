@@ -61,16 +61,8 @@ void OptionsDialog::LoadOrGenerateIni() {
         m_optionsMgr = std::make_shared<OptionsManager>();
     }
 
+    m_optionsMgr->EnsureInitialIni(m_optionsIniPath, m_optionsMgr->GetActiveVersion());
     m_optionsMgr->LoadFromIni(m_optionsIniPath);
-    // If options.ini does not exist in Documents, generate one with default options!
-    if (!fs::exists(m_optionsIniPath)) {
-        try {
-            if (m_optionsIniPath.has_parent_path()) {
-                fs::create_directories(m_optionsIniPath.parent_path());
-            }
-            m_optionsMgr->SaveToIni(m_optionsIniPath);
-        } catch (...) {}
-    }
 
     // Store initial snapshot for unsaved changes detection
     m_initialValues.clear();
@@ -111,6 +103,7 @@ void OptionsDialog::BuildUI() {
     AddCheckBox(col2, "EnableDebugConsole");
     AddCheckBox(col2, "FadedConsoleDisplay");
     AddCheckBox(col2, "CameraStyle");
+    AddCheckBox(col2, "PopUps");
     AddCheckBox(col2, "FoundHUD");
     AddCheckBox(col2, "ItemInfoDisplayEnabled");
     AddCheckBox(col2, "AscentVoiceOver");
@@ -180,7 +173,7 @@ void OptionsDialog::BuildUI() {
 void OptionsDialog::AddCheckBox(wxSizer* sizer, const std::string& key) {
     if (!m_optionsMgr) return;
     auto optOpt = m_optionsMgr->FindOption(key);
-    if (!optOpt) return;
+    if (!optOpt || optOpt->type != OptionType::Bool) return;
 
     const auto& opt = *optOpt;
     auto* row = new wxBoxSizer(wxHORIZONTAL);
@@ -258,7 +251,7 @@ void OptionsDialog::AddFloatCtrl(wxSizer* sizer, const std::string& key) {
 void OptionsDialog::AddChoiceCtrl(wxSizer* sizer, const std::string& key) {
     if (!m_optionsMgr) return;
     auto optOpt = m_optionsMgr->FindOption(key);
-    if (!optOpt) return;
+    if (!optOpt || optOpt->type != OptionType::Choice) return;
 
     const auto& opt = *optOpt;
     auto* row = new wxBoxSizer(wxHORIZONTAL);

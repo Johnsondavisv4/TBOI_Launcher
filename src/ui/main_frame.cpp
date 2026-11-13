@@ -279,13 +279,8 @@ void MainFrame::OnVersionSelected(wxCommandEvent&) {
         m_launcherConfig->Save(LauncherConfig::GetDefaultConfigPath());
     }
 
-    std::string activeVerForSchema = verId;
-    if (activeVerForSchema == "vanilla") {
-        activeVerForSchema = m_isaacInfo.valid ? m_isaacInfo.detectedVersion : "v1.9.7.17";
-    }
-
     if (m_optionsMgr) {
-        m_optionsMgr->SetActiveVersion(activeVerForSchema);
+        m_optionsMgr->SetActiveVersion(GetOptionsVersion(verId));
     }
 
     UpdateInterpolationButtonState();
@@ -433,20 +428,25 @@ void MainFrame::AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox)
     sizer->Add(gridSizer, 1, wxEXPAND | wxALL, 4);
 }
 
-void MainFrame::OnChangeOptionsClicked(wxCommandEvent&) {
-    auto optionsIniPath = m_isaacInfo.optionsIniPath;
-    const auto versionId = GetSelectedVersionId();
+std::string MainFrame::GetOptionsVersion(const std::string& versionId) const {
+    if (versionId != "vanilla") return versionId;
+    return m_isaacInfo.valid ? m_isaacInfo.detectedVersion : "v1.9.7.17";
+}
+
+fs::path MainFrame::GetOptionsIniPath(const std::string& versionId) const {
     if (versionId == "Rebirth" || versionId == "Afterbirth" ||
         versionId == "Afterbirth+" || versionId == "Repentance") {
-        optionsIniPath = IsaacDetector::ResolveOptionsIniPath(m_isaacInfo.rootDirectory, versionId);
+        return IsaacDetector::ResolveOptionsIniPath(m_isaacInfo.rootDirectory, versionId);
     }
+    return m_isaacInfo.optionsIniPath;
+}
+
+void MainFrame::OnChangeOptionsClicked(wxCommandEvent&) {
+    const auto versionId = GetSelectedVersionId();
     if (m_optionsMgr) {
-        const auto activeVersion = versionId == "vanilla"
-            ? (m_isaacInfo.valid ? m_isaacInfo.detectedVersion : "v1.9.7.17")
-            : versionId;
-        m_optionsMgr->SetActiveVersion(activeVersion);
+        m_optionsMgr->SetActiveVersion(GetOptionsVersion(versionId));
     }
-    OptionsDialog dlg(this, m_optionsMgr, optionsIniPath);
+    OptionsDialog dlg(this, m_optionsMgr, GetOptionsIniPath(versionId));
     if (dlg.ShowModal() == wxID_OK) {
         Log("Game options updated and saved to options.ini");
     }
@@ -583,6 +583,19 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
 
     std::string verId = GetSelectedVersionId();
 
+    if (m_optionsMgr && m_optionsMgr->HasDefaultTemplate()) {
+        const auto ini = GetOptionsIniPath(verId);
+        if (!m_optionsMgr->EnsureInitialIni(ini, GetOptionsVersion(verId))) {
+            Show(true);
+            Raise();
+            SetStatusText("Failed to create options.ini", 0);
+            LogError("Could not create options.ini from the template at " + wxString(ini.wstring()));
+            wxMessageBox("Failed to create options.ini from the template. Please check write permissions.",
+                         "Launch Error", wxOK | wxICON_ERROR, this);
+            return;
+        }
+    }
+
     // Check and download Steam Workshop mod updates before launching
     if (!OptionsManager::RequiresModsDisabled(verId) &&
         m_isSteamActive && m_launcherConfig && !m_launcherConfig->GetSkipModUpdates()) {
@@ -662,7 +675,7 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
 
         targetExePath = m_versionMgr->GetExePathForVersion(verId, m_isaacInfo);
         if (OptionsManager::RequiresModsDisabled(verId)) {
-            const auto ini = IsaacDetector::ResolveOptionsIniPath(m_isaacInfo.rootDirectory, verId);
+            const auto ini = GetOptionsIniPath(verId);
             std::error_code ec;
             fs::create_directories(ini.parent_path(), ec);
             if (ec || !WritePrivateProfileStringW(L"Options", L"EnableMods", L"0", ini.c_str())) {
