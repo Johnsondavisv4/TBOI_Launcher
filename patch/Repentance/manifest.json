@@ -1,0 +1,29 @@
+{
+  "delete": [
+    "EOSSDK-Win32-Shipping.dll",
+    "crash_uploader.exe",
+    "curl-ca-bundle.crt",
+    "libcurl.dll"
+  ],
+  "create": {},
+  "patch": [
+    "OpenAL32.dll",
+    "isaac-ng.exe",
+    "resources/packed/afterbirthp.a",
+    "resources/packed/repentance_de.a",
+    "resources/packed/repentance_es.a",
+    "resources/packed/repentance_fr.a",
+    "resources/packed/repentance_jp.a",
+    "resources/packed/repentance_kr.a",
+    "resources/packed/repentance_ru.a",
+    "resources/packed/repentance_zh.a",
+    "resources/scripts/enums.lua",
+    "resources/scripts/json.lua",
+    "resources/scripts/main.lua",
+    "steam_api.dll",
+    "tools/ResourceExtractor/Linux/filelist.txt",
+    "tools/ResourceExtractor/ResourceExtractor.exe",
+    "tools/ResourceExtractor/filelist.txt",
+    "tools/ResourceExtractor/macOS/filelist.txt"
+  ]
+}

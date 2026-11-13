@@ -41,6 +41,7 @@ private:
     void AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox);
     void RefreshVersionChoices();
     std::string GetSelectedVersionId() const;
+    void UpdateInterpolationButtonState();
 
     void OnPlayClicked(wxCommandEvent& event);
     void OnBrowseExeClicked(wxCommandEvent& event);

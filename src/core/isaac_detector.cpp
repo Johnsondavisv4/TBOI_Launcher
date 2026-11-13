@@ -178,22 +178,20 @@ std::string IsaacDetector::ExtractVersionFromPE(const fs::path& exePath) {
     return "v1.9.7.17"; // Safe default if Repentance+ binary format is detected
 }
 
-fs::path IsaacDetector::ResolveOptionsIniPath(const fs::path& isaacDir) {
+fs::path IsaacDetector::ResolveOptionsIniPath(const fs::path& isaacDir, const std::string& edition) {
+    const fs::path relativePath = fs::path("My Games") / ("Binding of Isaac " + edition) / "options.ini";
     WCHAR docPath[MAX_PATH] = { 0 };
     if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_MYDOCUMENTS, NULL, SHGFP_TYPE_CURRENT, docPath))) {
-        fs::path userDocs(docPath);
-        fs::path optionsFile = userDocs / "My Games" / "Binding of Isaac Repentance+" / "options.ini";
-        return optionsFile;
+        return fs::path(docPath) / relativePath;
     }
 
     const char* userProfile = std::getenv("USERPROFILE");
     if (userProfile) {
-        fs::path optionsFile = fs::path(userProfile) / "Documents" / "My Games" / "Binding of Isaac Repentance+" / "options.ini";
-        return optionsFile;
+        return fs::path(userProfile) / "Documents" / relativePath;
     }
 
     // Local Isaac Directory fallback
-    return isaacDir / "Documents" / "My Games" / "Binding of Isaac Repentance+" / "options.ini";
+    return isaacDir / "Documents" / relativePath;
 }
 
 fs::path IsaacDetector::ResolveModsDirectory(const fs::path& isaacDir) {

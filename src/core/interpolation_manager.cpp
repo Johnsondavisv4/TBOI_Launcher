@@ -67,14 +67,15 @@ InterpolationStatus InterpolationManager::GetStatus(
 
     // 4. Determine source interpolation patch directory
     fs::path patchRoot = patchDir.empty() ? FindInterpolationPatchDir() : patchDir;
-    fs::path candidateDll = patchRoot / status.targetVersion / "dinput8.dll";
+    fs::path versionDir = patchRoot;
+    if (status.targetVersion.starts_with("v1.9.")) {
+        versionDir /= "Repentance+";
+    }
+    fs::path candidateDll = versionDir / status.targetVersion / "dinput8.dll";
 
-    if (fs::exists(candidateDll)) {
+    if (fs::is_regular_file(candidateDll)) {
         status.isSupported = true;
         status.sourceDllPath = candidateDll;
-    } else {
-        // Fallback: check other version directories or root
-        status.isSupported = false;
     }
 
     // 5. Check if dinput8.dll is installed in target directory

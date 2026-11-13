@@ -61,18 +61,15 @@ void OptionsDialog::LoadOrGenerateIni() {
         m_optionsMgr = std::make_shared<OptionsManager>();
     }
 
+    m_optionsMgr->LoadFromIni(m_optionsIniPath);
     // If options.ini does not exist in Documents, generate one with default options!
     if (!fs::exists(m_optionsIniPath)) {
         try {
             if (m_optionsIniPath.has_parent_path()) {
                 fs::create_directories(m_optionsIniPath.parent_path());
             }
-            m_optionsMgr->SetTargetIniPath(m_optionsIniPath);
             m_optionsMgr->SaveToIni(m_optionsIniPath);
         } catch (...) {}
-    } else {
-        m_optionsMgr->SetTargetIniPath(m_optionsIniPath);
-        m_optionsMgr->LoadFromIni(m_optionsIniPath);
     }
 
     // Store initial snapshot for unsaved changes detection
@@ -122,6 +119,7 @@ void OptionsDialog::BuildUI() {
     AddCheckBox(col2, "StreamerMode");
     AddCheckBox(col2, "OnlineChatEnabled");
     AddCheckBox(col2, "OnlineChatFilterEnabled");
+    AddCheckBox(col2, "EnableEpicOverlay");
     AddCheckBox(col2, "AcceptedModDisclaimer");
     AddCheckBox(col2, "AcceptedPublicBeta_<VERSION>");
     AddCheckBox(col2, "AcceptedDataCollectionDisclaimer");
@@ -135,6 +133,7 @@ void OptionsDialog::BuildUI() {
     AddChoiceCtrl(col3, "MultiplayerColorSet");
     AddChoiceCtrl(col3, "AnnouncerVoiceMode");
     AddChoiceCtrl(col3, "OnlineHud");
+    AddChoiceCtrl(col3, "EosCrossplay");
 
     AddFloatCtrl(col3, "MusicVolume");
     AddFloatCtrl(col3, "SFXVolume");
@@ -193,6 +192,9 @@ void OptionsDialog::AddCheckBox(wxSizer* sizer, const std::string& key) {
     row->Add(txt, 0, wxALIGN_CENTER_VERTICAL);
 
     auto* chk = new wxCheckBox(this, wxID_ANY, "");
+    if (key == "EnableMods" && OptionsManager::RequiresModsDisabled(m_optionsMgr->GetActiveVersion())) {
+        chk->Disable();
+    }
     row->Add(chk, 0, wxALIGN_CENTER_VERTICAL);
 
     DialogControlBinding binding;
@@ -289,9 +291,6 @@ void OptionsDialog::PopulateControls() {
     for (auto& [key, binding] : m_bindings) {
         const auto& opt = binding.definition;
         std::string valStr = m_optionsMgr->GetValue(key);
-        if (valStr.empty()) {
-            valStr = opt.defaultValue;
-        }
 
         if (opt.type == OptionType::Bool && binding.checkBox) {
             bool bVal = (valStr == "1" || valStr == "true" || valStr == "True");
@@ -307,6 +306,10 @@ void OptionsDialog::PopulateControls() {
             } catch (...) {}
             binding.textCtrl->SetValue(wxString::FromUTF8(valStr.c_str()));
         } else if (opt.type == OptionType::Choice && binding.choice) {
+            if (valStr.empty()) {
+                binding.choice->SetSelection(wxNOT_FOUND);
+                continue;
+            }
             int iVal = 0;
             try { iVal = std::stoi(valStr); } catch (...) {}
             for (size_t i = 0; i < opt.choices.size(); ++i) {
@@ -404,6 +407,7 @@ bool OptionsDialog::HasUnsavedChanges() const {
         } else if (opt.type == OptionType::Choice && binding.choice) {
             int sel = binding.choice->GetSelection();
             if (sel >= 0 && sel < static_cast<int>(opt.choices.size())) {
+                if (initialVal.empty()) return true;
                 int curVal = opt.choices[sel].value;
                 int initVal = 0;
                 try { initVal = std::stoi(initialVal); } catch (...) {}

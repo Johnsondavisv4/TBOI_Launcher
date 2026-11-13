@@ -129,47 +129,40 @@ bool VersionManager::ScanVersions(
     vanillaDef.targetDirectory = steamInfo.rootDirectory;
     m_versions.push_back(vanillaDef);
 
-    // 2. Discover available patches in patchesSearchDir
-    if (fs::exists(patchesSearchDir) && fs::is_directory(patchesSearchDir)) {
-        for (const auto& entry : fs::directory_iterator(patchesSearchDir)) {
-            if (entry.is_directory()) {
-                fs::path manifestPath = entry.path() / "manifest.json";
-                if (fs::exists(manifestPath)) {
-                    std::string verId = entry.path().filename().string();
-                    VersionDefinition def;
-                    def.id = verId;
-                    def.displayName = verId;
-                    def.isVanilla = false;
-                    def.patchDirectory = entry.path();
-                    def.targetDirectory = versionsRootDir / verId;
+    if (patchesSearchDir.empty()) return true;
 
-                    // Read version.txt for required base Steam version
-                    fs::path verTxt = entry.path() / "version.txt";
-                    if (fs::exists(verTxt)) {
-                        std::ifstream vfs(verTxt);
-                        std::string line;
-                        if (std::getline(vfs, line) && !line.empty()) {
-                            line.erase(line.find_last_not_of(" \r\n\t") + 1);
-                            def.requiredBaseVersion = line;
-                        }
-                    }
+    const auto scanPatchDirectory = [&](const fs::path& directory, const std::string& displayPrefix) {
+        if (!fs::is_directory(directory)) return;
 
-                    // Read exehash.txt for base executable SHA-256 verification
-                    fs::path hashTxt = entry.path() / "exehash.txt";
-                    if (fs::exists(hashTxt)) {
-                        std::ifstream hfs(hashTxt);
-                        hfs >> def.expectedExeHash;
-                    }
+        for (const auto& entry : fs::directory_iterator(directory)) {
+            if (!entry.is_directory() || !fs::is_regular_file(entry.path() / "manifest.json")) continue;
 
-                    // Check if version is already prepared in versions/<id>/
-                    fs::path targetExe = def.targetDirectory / "isaac-ng.exe";
-                    def.isReady = fs::is_regular_file(targetExe) && IsPrepared(def.targetDirectory, verId);
+            const auto verId = entry.path().filename().string();
+            if (FindVersion(verId)) continue;
 
-                    m_versions.push_back(def);
-                }
+            VersionDefinition def;
+            def.id = verId;
+            def.displayName = displayPrefix + verId;
+            def.patchDirectory = entry.path();
+            def.targetDirectory = versionsRootDir / verId;
+
+            std::ifstream versionFile(entry.path() / "version.txt");
+            if (std::getline(versionFile, def.requiredBaseVersion)) {
+                def.requiredBaseVersion.erase(def.requiredBaseVersion.find_last_not_of(" \r\n\t") + 1);
             }
+
+            std::ifstream hashFile(entry.path() / "exehash.txt");
+            hashFile >> def.expectedExeHash;
+
+            def.isReady = fs::is_regular_file(def.targetDirectory / "isaac-ng.exe") &&
+                IsPrepared(def.targetDirectory, verId);
+            m_versions.push_back(def);
         }
-    }
+    };
+
+    // Prefer grouped Repentance+ patches when an older flat copy is still present.
+    scanPatchDirectory(patchesSearchDir / "Repentance+", "Repentance+ ");
+    scanPatchDirectory(patchesSearchDir, "");
 
     return true;
 }

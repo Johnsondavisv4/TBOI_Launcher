@@ -23,7 +23,7 @@ public:
     static std::optional<IsaacInstallationInfo> DetectViaSteamAPI();
     static bool ValidateExecutable(const std::filesystem::path& exePath, IsaacInstallationInfo& outInfo);
     static std::string ExtractVersionFromPE(const std::filesystem::path& exePath);
-    static std::filesystem::path ResolveOptionsIniPath(const std::filesystem::path& isaacDir);
+    static std::filesystem::path ResolveOptionsIniPath(const std::filesystem::path& isaacDir, const std::string& edition = "Repentance+");
     static std::filesystem::path ResolveModsDirectory(const std::filesystem::path& isaacDir);
     static std::vector<std::filesystem::path> FindSteamLibraries();
 };

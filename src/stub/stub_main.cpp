@@ -1,6 +1,9 @@
+#include "core/file_hash.h"
+
 #include <windows.h>
 #include <shellapi.h>
 #include <filesystem>
+#include <fstream>
 #include <vector>
 #include <string>
 
@@ -57,7 +60,9 @@ static bool ExtractDataBin(const fs::path& dataBinPath, const fs::path& outputDi
         return false;
     }
 
-    fs::create_directories(outputDir);
+    std::error_code ec;
+    fs::create_directories(outputDir, ec);
+    if (ec) return false;
 
     // 1. Try built-in tar.exe (fastest & silent)
     std::wstring tarCmd = L"tar.exe -xf \"" + dataBinPath.wstring() + L"\" -C \"" + outputDir.wstring() + L"\"";
@@ -79,6 +84,36 @@ static bool ExtractDataBin(const fs::path& dataBinPath, const fs::path& outputDi
     return false;
 }
 
+static bool EnsureDataBinExtracted(
+    const fs::path& dataBinPath,
+    const fs::path& appDllPath,
+    const fs::path& baseDir
+) {
+    const auto outputDir = appDllPath.parent_path();
+    const auto markerPath = outputDir / ".data-bin-extracted";
+    const auto packageHash = TBOI::CalculateFileSha256(dataBinPath);
+    if (packageHash.empty()) return false;
+
+    std::string extractedHash;
+    {
+        std::ifstream marker(markerPath);
+        std::getline(marker, extractedHash);
+    }
+    if (extractedHash == packageHash && fs::is_regular_file(appDllPath)) return true;
+
+    // An interrupted extraction must leave no record of a complete package.
+    std::error_code ec;
+    fs::remove(markerPath, ec);
+    if (ec || !ExtractDataBin(dataBinPath, outputDir, baseDir) ||
+        TBOI::CalculateFileSha256(dataBinPath) != packageHash) {
+        return false;
+    }
+
+    std::ofstream marker(markerPath, std::ios::trunc);
+    marker << packageHash << '\n';
+    return true;
+}
+
 int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     // 1. Set current directory to executable directory
     wchar_t exePathBuffer[MAX_PATH];
@@ -95,23 +130,12 @@ int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     fs::path launcherDataDir = baseDir / "launcher-data";
     fs::path appDllPath = launcherDataDir / "TBOI_LauncherApp.dll";
 
-    // 2. Check if extraction is needed
-    bool needsExtract = false;
-    if (!fs::exists(appDllPath)) {
-        needsExtract = true;
-    } else if (fs::exists(dataBinPath)) {
-        std::error_code ec1, ec2;
-        auto binTime = fs::last_write_time(dataBinPath, ec1);
-        auto dllTime = fs::last_write_time(appDllPath, ec2);
-        if (!ec1 && !ec2 && binTime > dllTime) {
-            needsExtract = true;
-        }
-    }
-
-    if (needsExtract) {
-        if (fs::exists(dataBinPath)) {
-            ExtractDataBin(dataBinPath, launcherDataDir, baseDir);
-        }
+    // 2. Extract a new package before loading the launcher.
+    if (fs::exists(dataBinPath) && !EnsureDataBinExtracted(dataBinPath, appDllPath, baseDir)) {
+        MessageBoxW(NULL,
+            L"No se pudo extraer 'data.bin'. Compruebe que el archivo sea válido y que pueda escribir en 'launcher-data'.",
+            L"TBOI: Launcher - Error", MB_ICONERROR | MB_OK);
+        return 1;
     }
 
     if (!fs::exists(appDllPath)) {

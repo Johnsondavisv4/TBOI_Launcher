@@ -13,6 +13,50 @@
     "disclaimers": "Disclaimers & Betas"
   },
   "version_rules": {
+    "Rebirth": {
+      "unsupported_keys": [
+        "Language", "MusicEnabled", "UseExclusiveFullscreen", "ShowRecentItems",
+        "HudOffset", "TryImportSave", "FoundHUD", "EnableMods",
+        "RumbleEnabled", "ChargeBars", "BulletVisibility", "TouchMode",
+        "AimLock", "JacobEsauControls", "AscentVoiceOver", "OnlineHud",
+        "StreamerMode", "OnlinePlayerVolume", "OnlinePlayerOpacity", "OnlineChatEnabled",
+        "OnlineChatFilterEnabled", "MultiplayerColorSet", "OnlineInputDelay", "ItemInfoDisplayEnabled",
+        "AcceptedPublicBeta_<VERSION>", "AcceptedModDisclaimer", "AcceptedDataCollectionDisclaimer", "EnableDebugConsole",
+        "BossHpOnBottom", "AnnouncerVoiceMode", "ConsoleFont", "FadedConsoleDisplay",
+        "SaveCommandHistory", "EnableEpicOverlay", "EosCrossplay"
+      ]
+    },
+    "Afterbirth": {
+      "unsupported_keys": [
+        "MusicEnabled", "UseExclusiveFullscreen", "FoundHUD", "EnableMods",
+        "RumbleEnabled", "ChargeBars", "BulletVisibility", "TouchMode",
+        "AimLock", "JacobEsauControls", "AscentVoiceOver", "OnlineHud",
+        "StreamerMode", "OnlinePlayerVolume", "OnlinePlayerOpacity", "OnlineChatEnabled",
+        "OnlineChatFilterEnabled", "MultiplayerColorSet", "OnlineInputDelay", "ItemInfoDisplayEnabled",
+        "AcceptedPublicBeta_<VERSION>", "AcceptedModDisclaimer", "AcceptedDataCollectionDisclaimer", "EnableDebugConsole",
+        "BossHpOnBottom", "AnnouncerVoiceMode", "ConsoleFont", "FadedConsoleDisplay",
+        "SaveCommandHistory", "EnableEpicOverlay", "EosCrossplay"
+      ]
+    },
+    "Afterbirth+": {
+      "unsupported_keys": [
+        "MusicEnabled", "UseExclusiveFullscreen", "BulletVisibility", "TouchMode",
+        "AimLock", "JacobEsauControls", "AscentVoiceOver", "OnlineHud",
+        "StreamerMode", "OnlinePlayerVolume", "OnlinePlayerOpacity", "OnlineChatEnabled",
+        "OnlineChatFilterEnabled", "MultiplayerColorSet", "OnlineInputDelay", "ItemInfoDisplayEnabled",
+        "AcceptedPublicBeta_<VERSION>", "AcceptedModDisclaimer", "AcceptedDataCollectionDisclaimer", "EnableDebugConsole",
+        "EnableEpicOverlay", "EosCrossplay"
+      ]
+    },
+    "Repentance": {
+      "unsupported_keys": [
+        "UseExclusiveFullscreen", "JacobEsauControls", "AscentVoiceOver", "OnlineHud",
+        "StreamerMode", "OnlinePlayerVolume", "OnlinePlayerOpacity", "OnlineChatEnabled",
+        "OnlineChatFilterEnabled", "MultiplayerColorSet", "OnlineInputDelay", "ItemInfoDisplayEnabled",
+        "AcceptedPublicBeta_<VERSION>", "AcceptedModDisclaimer", "AcceptedDataCollectionDisclaimer", "EnableEpicOverlay",
+        "EosCrossplay"
+      ]
+    },
     "v1.9.7.15": {
       "unsupported_keys": [
         "UseExclusiveFullscreen",
@@ -490,10 +534,16 @@
     {
       "key": "EosCrossplay",
       "label": "EOS Crossplay",
-      "type": "bool",
+      "type": "choice",
       "category": "multiplayer",
       "default": 0,
-      "introduced_in": "v1.9.7.16"
+      "introduced_in": "v1.9.7.16",
+      "choices": [
+        { "value": 0, "label": "Off (0)" },
+        { "value": 1, "label": "Off (1)" },
+        { "value": 2, "label": "On" },
+        { "value": 3, "label": "On + Epic" }
+      ]
     }
   ]
 }

@@ -42,6 +42,7 @@ public:
     const OptionsSchema& GetSchema() const { return m_schema; }
     const std::string& GetActiveVersion() const { return m_activeVersion; }
     void SetActiveVersion(const std::string& version);
+    static bool RequiresModsDisabled(const std::string& version);
 
     std::vector<OptionDefinition> GetActiveOptions() const;
     std::optional<OptionDefinition> FindOption(const std::string& key) const;

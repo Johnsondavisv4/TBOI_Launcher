@@ -1,17 +1,15 @@
 #include "core/diff_patcher.h"
+#include "core/file_hash.h"
 
 #include <bzlib.h>
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
 
 #include <windows.h>
-#include <wincrypt.h>
 
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include <vector>
-#include <iomanip>
 #include <algorithm>
 
 namespace TBOI {
@@ -223,54 +221,7 @@ bool DiffPatcher::ApplySingleFilePatch(
 }
 
 std::string DiffPatcher::CalculateSha256(const fs::path& filePath) {
-    if (!fs::exists(filePath)) {
-        return "";
-    }
-
-    std::ifstream ifs(filePath, std::ios::binary);
-    if (!ifs.is_open()) {
-        return "";
-    }
-
-    HCRYPTPROV hProv = 0;
-    HCRYPTHASH hHash = 0;
-
-    if (!CryptAcquireContextW(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
-        return "";
-    }
-
-    if (!CryptCreateHash(hProv, CALG_SHA_256, 0, 0, &hHash)) {
-        CryptReleaseContext(hProv, 0);
-        return "";
-    }
-
-    std::vector<char> buffer(65536);
-    while (ifs.good()) {
-        ifs.read(buffer.data(), buffer.size());
-        std::streamsize bytesRead = ifs.gcount();
-        if (bytesRead > 0) {
-            if (!CryptHashData(hHash, (BYTE*)buffer.data(), (DWORD)bytesRead, 0)) {
-                CryptDestroyHash(hHash);
-                CryptReleaseContext(hProv, 0);
-                return "";
-            }
-        }
-    }
-
-    DWORD hashLen = 32;
-    BYTE hashVal[32] = { 0 };
-    bool valid = !ifs.bad() && CryptGetHashParam(hHash, HP_HASHVAL, hashVal, &hashLen, 0);
-
-    CryptDestroyHash(hHash);
-    CryptReleaseContext(hProv, 0);
-    if (!valid) return "";
-
-    std::ostringstream oss;
-    for (DWORD i = 0; i < hashLen; ++i) {
-        oss << std::hex << std::setw(2) << std::setfill('0') << (int)hashVal[i];
-    }
-
-    return oss.str();
+    return CalculateFileSha256(filePath);
 }
 
 bool DiffPatcher::VerifyExeHash(const fs::path& exePath, const fs::path& hashFilePath) {

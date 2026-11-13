@@ -247,6 +247,7 @@ void MainFrame::RefreshVersionChoices() {
         m_versionChoice->SetSelection(selectedIdx);
     }
 
+    UpdateInterpolationButtonState();
     UpdatePlayButtonState();
 }
 
@@ -262,6 +263,13 @@ std::string MainFrame::GetSelectedVersionId() const {
         }
     }
     return "vanilla";
+}
+
+void MainFrame::UpdateInterpolationButtonState() {
+    if (!m_btnInterpolation) return;
+
+    const auto versionId = GetSelectedVersionId();
+    m_btnInterpolation->Enable(versionId != "Rebirth" && versionId != "Afterbirth" && versionId != "Afterbirth+");
 }
 
 void MainFrame::OnVersionSelected(wxCommandEvent&) {
@@ -280,6 +288,7 @@ void MainFrame::OnVersionSelected(wxCommandEvent&) {
         m_optionsMgr->SetActiveVersion(activeVerForSchema);
     }
 
+    UpdateInterpolationButtonState();
     UpdatePlayButtonState();
 
     if (m_versionMgr) {
@@ -416,6 +425,7 @@ void MainFrame::AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox)
 
     m_btnChangeOptions = new wxButton(optBox, ID_BTN_CHANGE_OPTIONS, "Change Game Options");
     m_btnInterpolation = new wxButton(optBox, ID_BTN_INTERPOLATION, "60 FPS Patch (Experimental)");
+    UpdateInterpolationButtonState();
     optSizer->Add(m_btnChangeOptions, 0, wxEXPAND | wxALL, 3);
     optSizer->Add(m_btnInterpolation, 0, wxEXPAND | wxALL, 3);
     gridSizer->Add(optSizer, 1, wxEXPAND);
@@ -424,7 +434,19 @@ void MainFrame::AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox)
 }
 
 void MainFrame::OnChangeOptionsClicked(wxCommandEvent&) {
-    OptionsDialog dlg(this, m_optionsMgr, m_isaacInfo.optionsIniPath);
+    auto optionsIniPath = m_isaacInfo.optionsIniPath;
+    const auto versionId = GetSelectedVersionId();
+    if (versionId == "Rebirth" || versionId == "Afterbirth" ||
+        versionId == "Afterbirth+" || versionId == "Repentance") {
+        optionsIniPath = IsaacDetector::ResolveOptionsIniPath(m_isaacInfo.rootDirectory, versionId);
+    }
+    if (m_optionsMgr) {
+        const auto activeVersion = versionId == "vanilla"
+            ? (m_isaacInfo.valid ? m_isaacInfo.detectedVersion : "v1.9.7.17")
+            : versionId;
+        m_optionsMgr->SetActiveVersion(activeVersion);
+    }
+    OptionsDialog dlg(this, m_optionsMgr, optionsIniPath);
     if (dlg.ShowModal() == wxID_OK) {
         Log("Game options updated and saved to options.ini");
     }
@@ -562,7 +584,8 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
     std::string verId = GetSelectedVersionId();
 
     // Check and download Steam Workshop mod updates before launching
-    if (m_isSteamActive && m_launcherConfig && !m_launcherConfig->GetSkipModUpdates()) {
+    if (!OptionsManager::RequiresModsDisabled(verId) &&
+        m_isSteamActive && m_launcherConfig && !m_launcherConfig->GetSkipModUpdates()) {
         if (m_isaacInfo.valid && !m_isaacInfo.modsDirectory.empty()) {
             Log("Checking for mod updates in Steam Workshop...");
             ModUpdateDialog updateDlg(this, m_isaacInfo.modsDirectory, 0, m_launcherConfig);
@@ -638,6 +661,22 @@ void MainFrame::LaunchGameWithMonitoring(bool isStealth) {
         }
 
         targetExePath = m_versionMgr->GetExePathForVersion(verId, m_isaacInfo);
+        if (OptionsManager::RequiresModsDisabled(verId)) {
+            const auto ini = IsaacDetector::ResolveOptionsIniPath(m_isaacInfo.rootDirectory, verId);
+            std::error_code ec;
+            fs::create_directories(ini.parent_path(), ec);
+            if (ec || !WritePrivateProfileStringW(L"Options", L"EnableMods", L"0", ini.c_str())) {
+                m_isGameRunning = false;
+                EnableInterface(true);
+                SetStatusText("Failed to disable mods", 0);
+                LogError("Could not set EnableMods=0 in " + wxString(ini.wstring()));
+                Show(true);
+                Raise();
+                wxMessageBox("Failed to disable mods in options.ini. Please check write permissions.",
+                             "Launch Error", wxOK | wxICON_ERROR, this);
+                return;
+            }
+        }
         fs::path redirectDll = LauncherApp::FindRedirectDllPath();
         fs::path steamModsDir = m_isaacInfo.modsDirectory;
         fs::path steamDataDir = m_isaacInfo.rootDirectory / "data";

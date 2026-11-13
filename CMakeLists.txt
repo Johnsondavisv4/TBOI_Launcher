@@ -114,9 +114,9 @@ add_custom_command(
 )
 
 # Target 3: TBOI_Launcher (Lightweight native Win32 Stub Loader)
-add_executable (TBOI_Launcher WIN32 "src/stub/stub_main.cpp")
+add_executable (TBOI_Launcher WIN32 "src/stub/stub_main.cpp" "src/core/file_hash.cpp")
 target_include_directories (TBOI_Launcher PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries (TBOI_Launcher PRIVATE user32 shell32 kernel32)
+target_link_libraries (TBOI_Launcher PRIVATE user32 shell32 kernel32 advapi32)
 add_dependencies (TBOI_Launcher TBOI_LauncherApp)
 
 add_custom_command(

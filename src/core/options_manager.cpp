@@ -10,6 +10,8 @@ namespace TBOI {
 
 namespace fs = std::filesystem;
 
+static constexpr const char* BETA_KEY_TEMPLATE = "AcceptedPublicBeta_<VERSION>";
+
 static inline std::string Trim(const std::string& s) {
     auto start = s.find_first_not_of(" \t\r\n");
     if (start == std::string::npos) return "";
@@ -66,18 +68,20 @@ void OptionsManager::SetActiveVersion(const std::string& version) {
         return;
     }
 
-    std::string oldBetaKey = OptionsSchema::ResolveDynamicKey("AcceptedPublicBeta_<VERSION>", m_activeVersion);
-    std::string newBetaKey = OptionsSchema::ResolveDynamicKey("AcceptedPublicBeta_<VERSION>", version);
+    const auto unsupported = m_schema.GetUnsupportedKeysForVersion(version);
+    std::string oldBetaKey = OptionsSchema::ResolveDynamicKey(BETA_KEY_TEMPLATE, m_activeVersion);
+    std::string newBetaKey = OptionsSchema::ResolveDynamicKey(BETA_KEY_TEMPLATE, version);
 
     // If previous beta key was set by user, transfer user preference to new beta key
     if (m_values.find(oldBetaKey) != m_values.end()) {
         std::string val = m_values[oldBetaKey];
         m_values.erase(oldBetaKey);
-        m_values[newBetaKey] = val;
+        if (!unsupported.contains(BETA_KEY_TEMPLATE)) {
+            m_values[newBetaKey] = val;
+        }
     }
 
     // Prune unsupported keys of the new target version
-    auto unsupported = m_schema.GetUnsupportedKeysForVersion(version);
     for (const auto& unsuppKey : unsupported) {
         m_values.erase(unsuppKey);
     }
@@ -87,6 +91,10 @@ void OptionsManager::SetActiveVersion(const std::string& version) {
 
 std::vector<OptionDefinition> OptionsManager::GetActiveOptions() const {
     return m_schema.GetOptionsForVersion(m_activeVersion);
+}
+
+bool OptionsManager::RequiresModsDisabled(const std::string& version) {
+    return version == "Afterbirth+" || version == "Repentance";
 }
 
 bool OptionsManager::LoadFromIni(const fs::path& iniPath) {
@@ -150,9 +158,6 @@ bool OptionsManager::SaveToIni(const fs::path& iniPath) {
 
     for (const auto& opt : activeOptions) {
         std::string val = GetValue(opt.resolvedKey);
-        if (val.empty()) {
-            val = opt.defaultValue;
-        }
         if (opt.type == OptionType::Float) {
             try {
                 double fVal = std::stod(val);
@@ -166,13 +171,12 @@ bool OptionsManager::SaveToIni(const fs::path& iniPath) {
     }
 
     // Write any leftover custom or unmanaged keys present in m_values (REPENTOGON unsupported options preservation)
+    const auto unsupported = m_schema.GetUnsupportedKeysForVersion(m_activeVersion);
+    const bool betaUnsupported = unsupported.contains(BETA_KEY_TEMPLATE);
     for (const auto& [key, val] : m_values) {
-        if (writtenKeys.find(key) == writtenKeys.end()) {
-            // Check if key is unsupported for current version
-            auto unsupported = m_schema.GetUnsupportedKeysForVersion(m_activeVersion);
-            if (unsupported.find(key) == unsupported.end()) {
-                file << key << "=" << val << "\n";
-            }
+        if (!writtenKeys.contains(key) && !unsupported.contains(key) &&
+            !(betaUnsupported && key.starts_with("AcceptedPublicBeta_"))) {
+            file << key << "=" << val << "\n";
         }
     }
 
@@ -180,6 +184,10 @@ bool OptionsManager::SaveToIni(const fs::path& iniPath) {
 }
 
 std::string OptionsManager::GetDefaultValue(const std::string& key) const {
+    if (key == "EnableMods" && RequiresModsDisabled(m_activeVersion)) {
+        return "0";
+    }
+
     if (!m_defaultTemplates.empty()) {
         // 1. Direct match (e.g. "Language", "MusicVolume", or already resolved dynamic key)
         auto it = m_defaultTemplates.find(key);
@@ -210,6 +218,10 @@ std::string OptionsManager::GetDefaultValue(const std::string& key) const {
 }
 
 std::string OptionsManager::GetValue(const std::string& key) const {
+    if (key == "EnableMods" && RequiresModsDisabled(m_activeVersion)) {
+        return "0";
+    }
+
     auto it = m_values.find(key);
     if (it != m_values.end()) {
         return it->second;

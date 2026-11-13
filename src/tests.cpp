@@ -275,6 +275,22 @@ int main(int argc, char** argv) {
     CHECK(optMgr2.GetValue("AcceptedPublicBeta_v1.9.7.15").empty());
     std::cout << "[TEST] OptionsManager Version Migration: PASSED\n";
 
+    for (const std::string version : {"Afterbirth+", "Repentance", "v1.9.7.15", "v1.9.7.17"}) {
+        std::ofstream(tempIni) << "[Options]\nEnableMods=1\n";
+        CHECK(optMgr2.Initialize(schemaPath, version));
+        CHECK(optMgr2.LoadDefaultTemplate(tempIni));
+        CHECK(optMgr2.LoadFromIni(tempIni));
+        const bool editable = version.starts_with("v1.9.");
+        CHECK(optMgr2.GetBool("EnableMods") == editable);
+        CHECK(optMgr2.GetDefaultValue("EnableMods") == (editable ? "1" : "0"));
+        optMgr2.SetBool("EnableMods", true);
+        CHECK(optMgr2.SaveToIni(tempIni));
+        std::ifstream savedIni(tempIni);
+        std::string line;
+        while (std::getline(savedIni, line) && !line.starts_with("EnableMods=")) {}
+        CHECK(line == (editable ? "EnableMods=1" : "EnableMods=0"));
+    }
+
     fs::remove(tempIni);
 
     // Test OptionsManager Default Template with dynamic <VERSION>
@@ -586,18 +602,18 @@ int main(int argc, char** argv) {
     mockInfo.rootDirectory = "C:/Games/Binding of Isaac";
     mockInfo.executablePath = "C:/Games/Binding of Isaac/isaac-ng.exe";
 
-    verMgr.ScanVersions(patchesDir, "versions", mockInfo);
+    CHECK(verMgr.ScanVersions(patchesDir, "versions", mockInfo));
     auto available = verMgr.GetAvailableVersions();
     CHECK(available.size() >= 1);
     CHECK(available[0].id == "vanilla");
     CHECK(available[0].isVanilla == true);
 
-    if (fs::exists(patchesDir / "v1.9.7.15" / "manifest.json")) {
-        CHECK(available.size() >= 2);
-        CHECK(available[1].id == "v1.9.7.15");
-        CHECK(available[1].isVanilla == false);
-        std::cout << "[TEST] VersionManager ScanVersions discovered v1.9.7.15: PASSED\n";
-    }
+    const auto repentancePlus = verMgr.FindVersion("v1.9.7.15");
+    CHECK(repentancePlus.has_value());
+    CHECK(!repentancePlus->isVanilla);
+    CHECK(repentancePlus->patchDirectory == patchesDir / "Repentance+" / "v1.9.7.15");
+    CHECK(repentancePlus->targetDirectory == fs::path("versions") / "v1.9.7.15");
+    std::cout << "[TEST] VersionManager ScanVersions discovered v1.9.7.15: PASSED\n";
 
     // Test Redirection Rules (redirect_rules.h)
     std::wstring testModsDir = L"C:\\Steam\\steamapps\\common\\The Binding of Isaac Rebirth\\mods";
