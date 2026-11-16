@@ -20,10 +20,6 @@
     "resources/scripts/enums.lua",
     "resources/scripts/json.lua",
     "resources/scripts/main.lua",
-    "steam_api.dll",
-    "tools/ResourceExtractor/Linux/filelist.txt",
-    "tools/ResourceExtractor/ResourceExtractor.exe",
-    "tools/ResourceExtractor/filelist.txt",
-    "tools/ResourceExtractor/macOS/filelist.txt"
+    "steam_api.dll"
   ]
 }

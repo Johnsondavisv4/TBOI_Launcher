@@ -5,9 +5,6 @@
   "create": {},
   "patch": [
     "isaac-ng.exe",
-    "resources/packed/afterbirthp.a",
-    "tools/ResourceExtractor/Linux/filelist.txt",
-    "tools/ResourceExtractor/filelist.txt",
-    "tools/ResourceExtractor/macOS/filelist.txt"
+    "resources/packed/afterbirthp.a"
   ]
 }

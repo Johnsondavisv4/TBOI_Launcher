@@ -247,6 +247,12 @@ bool DiffPatcher::VerifyExeHash(const fs::path& exePath, const fs::path& hashFil
     return !expectedHash.empty() && expectedHash == actualHash;
 }
 
+// Older downgrade manifests can still reference the tools omitted from the game copy.
+static bool IsToolsPath(const fs::path& relativePath) {
+    const auto normalized = relativePath.lexically_normal();
+    return !normalized.empty() && _wcsicmp(normalized.begin()->c_str(), L"tools") == 0;
+}
+
 bool DiffPatcher::ApplyPatch(
     const fs::path& targetFolder,
     const fs::path& patchFolder,
@@ -279,7 +285,9 @@ bool DiffPatcher::ApplyPatch(
     if (doc.HasMember("delete") && doc["delete"].IsArray()) {
         for (const auto& item : doc["delete"].GetArray()) {
             if (item.IsString()) {
-                fs::path toDel = targetFolder / item.GetString();
+                const fs::path relPath = item.GetString();
+                if (IsToolsPath(relPath)) continue;
+                fs::path toDel = targetFolder / relPath;
                 if (fs::exists(toDel)) {
                     fs::remove_all(toDel, ec);
                     if (ec) {
@@ -296,6 +304,7 @@ bool DiffPatcher::ApplyPatch(
     if (doc.HasMember("create") && doc["create"].IsObject()) {
         for (auto it = doc["create"].MemberBegin(); it != doc["create"].MemberEnd(); ++it) {
             std::string relPath = it->name.GetString();
+            if (IsToolsPath(relPath)) continue;
             fs::path srcFile = patchFolder / "create" / relPath;
             fs::path dstFile = targetFolder / relPath;
 
@@ -326,6 +335,7 @@ bool DiffPatcher::ApplyPatch(
             ++current;
 
             std::string relPath = item.GetString();
+            if (IsToolsPath(relPath)) continue;
             fs::path oldFile = targetFolder / relPath;
             fs::path patchFile = patchFolder / "patches" / (relPath + ".patch");
             fs::path tempNewFile = targetFolder / (relPath + ".patched");

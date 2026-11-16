@@ -3,6 +3,9 @@
 #include "core/game_runner.h"
 #include "core/options_schema.h"
 
+#include <windows.h>
+#include <shlwapi.h>
+
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -16,7 +19,7 @@ VersionManager::VersionManager() = default;
 VersionManager::~VersionManager() = default;
 
 std::vector<std::string> VersionManager::GetCopyExclusions() {
-    return { "mods", "data", "versions", "dinput8.dll", "interpol.ini" };
+    return { "mods", "data", "versions", "tools", "dinput8.dll", "interpol.ini" };
 }
 
 static std::string ToLowerA(std::string s) {
@@ -161,8 +164,32 @@ bool VersionManager::ScanVersions(
     };
 
     // Prefer grouped Repentance+ patches when an older flat copy is still present.
-    scanPatchDirectory(patchesSearchDir / "Repentance+", "Repentance+ ");
+    const auto repentancePlusDir = patchesSearchDir / "Repentance+";
+    scanPatchDirectory(repentancePlusDir, "Repentance+ ");
     scanPatchDirectory(patchesSearchDir, "");
+
+    const auto dlcOrder = [&](const VersionDefinition& version) {
+        const auto& id = version.id;
+        if (version.patchDirectory.parent_path() == repentancePlusDir ||
+            (id.size() > 1 && id[0] == 'v' && id[1] >= '0' && id[1] <= '9')) {
+            return 0;
+        }
+        if (id == "Repentance") return 1;
+        if (id == "Afterbirth+") return 2;
+        if (id == "Afterbirth") return 3;
+        if (id == "Rebirth") return 4;
+        return 5;
+    };
+    // Leave Steam Vanilla at the top. Sort version numbers naturally within a DLC.
+    std::sort(m_versions.begin() + 1, m_versions.end(), [&](const auto& a, const auto& b) {
+        const int orderA = dlcOrder(a);
+        const int orderB = dlcOrder(b);
+        if (orderA != orderB) return orderA < orderB;
+
+        const int versionOrder = StrCmpLogicalW(a.patchDirectory.filename().c_str(),
+                                                b.patchDirectory.filename().c_str());
+        return versionOrder != 0 ? versionOrder > 0 : a.id > b.id;
+    });
 
     return true;
 }

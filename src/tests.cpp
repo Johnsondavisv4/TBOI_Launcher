@@ -70,12 +70,17 @@ static void TestPreparationFailures() {
     const auto patch = patchRoot / "test-version";
     const auto target = versions / "test-version";
     fs::create_directories(source / "resources");
+    fs::create_directories(source / "Tools");
     fs::create_directories(versions / "previous");
     fs::create_directories(patch);
     std::ofstream(source / "isaac-ng.exe") << "base";
     std::ofstream(source / "resources" / "asset") << "asset";
+    std::ofstream(source / "Tools" / "editor.exe") << "editor";
     std::ofstream(versions / "previous" / "isaac-ng.exe") << "previous";
-    std::ofstream(patch / "manifest.json") << R"({"patch":["isaac-ng.exe"]})";
+    std::ofstream(patch / "manifest.json") << R"({
+        "create":{"tools/new-editor.exe":"create/tools/new-editor.exe"},
+        "patch":["tools/editor.exe","isaac-ng.exe"]
+    })";
     WritePatch(patch / "patches" / "isaac-ng.exe.patch", "patched");
 
     IsaacInstallationInfo info;
@@ -86,6 +91,8 @@ static void TestPreparationFailures() {
     CHECK(manager.ScanVersions(patchRoot, versions, info));
     CHECK(manager.PrepareVersion("test-version", info));
     CHECK(ReadFile(target / "isaac-ng.exe") == "patched");
+    CHECK(ReadFile(target / "resources" / "asset") == "asset");
+    CHECK(!fs::exists(target / "Tools"));
     CHECK(!fs::exists(target / "versions"));
     CHECK(manager.ScanVersions(patchRoot, versions, info));
     CHECK(manager.FindVersion("test-version")->isReady);
