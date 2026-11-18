@@ -419,7 +419,7 @@ void MainFrame::AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox)
     auto* optSizer = new wxStaticBoxSizer(optBox, wxVERTICAL);
 
     m_btnChangeOptions = new wxButton(optBox, ID_BTN_CHANGE_OPTIONS, "Change Game Options");
-    m_btnInterpolation = new wxButton(optBox, ID_BTN_INTERPOLATION, "60 FPS Patch (Experimental)");
+    m_btnInterpolation = new wxButton(optBox, ID_BTN_INTERPOLATION, "120 FPS Patch (Experimental)");
     UpdateInterpolationButtonState();
     optSizer->Add(m_btnChangeOptions, 0, wxEXPAND | wxALL, 3);
     optSizer->Add(m_btnInterpolation, 0, wxEXPAND | wxALL, 3);

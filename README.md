@@ -8,7 +8,7 @@ This project was developed for personal use.
 
 ## Included patches
 
-| Game version | Downgrade patch | Experimental 60 FPS animation interpolation |
+| Game version | Downgrade patch | Experimental 120 FPS interpolation |
 | --- | --- | --- |
 | Rebirth | Included | — |
 | Afterbirth | Included | — |
@@ -23,7 +23,7 @@ The bundled downgrades require a Steam installation of **Repentance+ v1.9.7.17.J
 
 - **Game Options** edits the selected version's `options.ini`. Repentance+ v1.9.7.17 includes controls for **Epic Overlay** and **EOS Crossplay**.
 - **Mod Manager** manages Steam Workshop mods. Prepared versions reuse the Steam installation's `mods/` and `data/` folders. In Afterbirth+ and Repentance, the launcher locks **Enable Mods** off and skips Workshop updates at launch. The setting is editable in Repentance+.
-- **60 FPS Patch (Experimental)** installs, toggles, or removes the animation interpolation patch for the selected supported version.
+- **120 FPS Patch (Experimental)** installs, toggles, or removes the interpolation patch for the selected supported version. The patch smooths supported animations and lets the game render at up to 120 FPS.
 - **Steam Launch Options** lets you copy the launch command for normal or background execution (*Stealth Mode*). **Check Logs** opens the game's log from the launcher.
 
 You can place an `options.ini` beside the launcher to supply defaults for missing settings. An optional `data/` folder beside the launcher supplies initial mod data without overwriting existing files.

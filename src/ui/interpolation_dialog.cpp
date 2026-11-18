@@ -16,7 +16,7 @@ InterpolationDialog::InterpolationDialog(
     const IsaacInstallationInfo& isaacInfo,
     const std::filesystem::path& versionsRootDir,
     const std::filesystem::path& patchDir
-) : wxDialog(parent, wxID_ANY, "60 FPS Interpolation Patch (Experimental)", wxDefaultPosition, wxSize(440, 360),
+) : wxDialog(parent, wxID_ANY, "120 FPS Interpolation Patch (Experimental)", wxDefaultPosition, wxSize(440, 360),
              wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER),
     m_currentVersion(currentVersion),
     m_isaacInfo(isaacInfo),
@@ -44,9 +44,8 @@ void InterpolationDialog::BuildUI() {
     auto* lblWarnDesc = new wxStaticText(
         noticeBox,
         wxID_ANY,
-        "Injects a 60 FPS rendering interpolation wrapper (dinput8.dll) into the game.\n"
-        "This unlocks smooth rendering beyond the base tickrate. However, it may cause "
-        "visual glitches, physics anomalies, or crashes on certain setups."
+        "Smooths supported animations and lets the game render at up to 120 FPS.\n"
+        "It may cause visual glitches, physics anomalies, or crashes on certain setups."
     );
     lblWarnDesc->Wrap(400);
     noticeSizer->Add(lblWarnDesc, 0, wxLEFT | wxRIGHT | wxBOTTOM, 6);
@@ -73,7 +72,7 @@ void InterpolationDialog::BuildUI() {
     statusSizer->Add(m_lblStatus, 1, wxEXPAND);
     configSizer->Add(statusSizer, 0, wxEXPAND | wxALL, 4);
 
-    m_chkEnabled = new wxCheckBox(configBox, ID_CHK_ENABLED, "Enable 60 FPS Interpolation (interpol.ini: Enabled=1)");
+    m_chkEnabled = new wxCheckBox(configBox, ID_CHK_ENABLED, "Enable 120 FPS Interpolation (interpol.ini: Enabled=1)");
     configSizer->Add(m_chkEnabled, 0, wxALL, 6);
 
     auto* btnRowSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -120,7 +119,7 @@ void InterpolationDialog::RefreshStatus() {
         m_btnUninstall->Enable(status.isInstalled);
     } else if (status.isInstalled) {
         if (status.isEnabled) {
-            m_lblStatus->SetLabel("Installed & Enabled (Active 60 FPS)");
+            m_lblStatus->SetLabel("Installed & Enabled");
             m_lblStatus->SetForegroundColour(wxColour(0, 140, 0));
         } else {
             m_lblStatus->SetLabel("Installed (Disabled in interpol.ini)");
@@ -157,13 +156,13 @@ void InterpolationDialog::OnToggleEnable(wxCommandEvent& event) {
 void InterpolationDialog::OnInstallClicked(wxCommandEvent&) {
     auto status = InterpolationManager::GetStatus(m_currentVersion, m_isaacInfo, m_versionsRootDir, m_patchDir);
     if (!status.isTargetReady) {
-        wxMessageBox("The selected game version has not been set up yet.\nPlease prepare the version from the main window before installing the 60 FPS patch.", "Version Not Ready", wxOK | wxICON_WARNING, this);
+        wxMessageBox("The selected game version has not been set up yet.\nPlease prepare the version from the main window before installing the 120 FPS patch.", "Version Not Ready", wxOK | wxICON_WARNING, this);
         RefreshStatus();
         return;
     }
 
     if (InterpolationManager::InstallPatch(m_currentVersion, m_isaacInfo, m_versionsRootDir, m_patchDir)) {
-        wxMessageBox("60 FPS Interpolation Patch installed successfully!", "Interpolation Patch", wxOK | wxICON_INFORMATION, this);
+        wxMessageBox("120 FPS Interpolation Patch installed successfully!", "Interpolation Patch", wxOK | wxICON_INFORMATION, this);
         RefreshStatus();
     } else {
         wxMessageBox("Failed to install dinput8.dll / interpol.ini. Please ensure the target folder exists and check write permissions.", "Installation Error", wxOK | wxICON_ERROR, this);
@@ -173,7 +172,7 @@ void InterpolationDialog::OnInstallClicked(wxCommandEvent&) {
 
 void InterpolationDialog::OnUninstallClicked(wxCommandEvent&) {
     if (InterpolationManager::UninstallPatch(m_currentVersion, m_isaacInfo, m_versionsRootDir)) {
-        wxMessageBox("60 FPS Interpolation Patch uninstalled successfully.", "Interpolation Patch", wxOK | wxICON_INFORMATION, this);
+        wxMessageBox("120 FPS Interpolation Patch uninstalled successfully.", "Interpolation Patch", wxOK | wxICON_INFORMATION, this);
         RefreshStatus();
     } else {
         wxMessageBox("Failed to remove dinput8.dll / interpol.ini.", "Uninstall Error", wxOK | wxICON_ERROR, this);

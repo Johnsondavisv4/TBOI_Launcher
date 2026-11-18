@@ -814,7 +814,7 @@ int main(int argc, char** argv) {
     CHECK(!fs::exists(testGameRoot / "interpol.ini"));
 
     fs::remove_all(testGameRoot);
-    std::cout << "[TEST] InterpolationManager 60 FPS Patch Management: PASSED\n";
+    std::cout << "[TEST] InterpolationManager 120 FPS Patch Management: PASSED\n";
 
     std::cout << "\n========================================\n";
     std::cout << "ALL TBOI: LAUNCHER CORE UNIT TESTS PASSED!\n";
