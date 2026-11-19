@@ -180,7 +180,7 @@ void OptionsDialog::AddCheckBox(wxSizer* sizer, const std::string& key) {
 
     auto* txt = new wxStaticText(this, wxID_ANY, opt.label);
     int width, height;
-    txt->GetTextExtent("Accepted Betas (v1.9.7.17) ", &width, &height);
+    txt->GetTextExtent("Accepted Betas (v1.9.7.19) ", &width, &height);
     txt->SetMinSize(wxSize(width, height));
     row->Add(txt, 0, wxALIGN_CENTER_VERTICAL);
 

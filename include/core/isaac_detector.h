@@ -11,7 +11,7 @@ struct IsaacInstallationInfo {
     bool valid = false;
     std::filesystem::path executablePath;
     std::filesystem::path rootDirectory;
-    std::string detectedVersion;      // e.g. "v1.9.7.15" or "v1.9.7.17"
+    std::string detectedVersion;      // e.g. "v1.9.7.15" or "v1.9.7.19"
     std::filesystem::path optionsIniPath;
     std::filesystem::path modsDirectory;
     std::filesystem::path logFilePath;

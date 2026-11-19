@@ -351,7 +351,7 @@ bool LauncherApp::OnInit() {
     fs::path schemaPath = FindSchemaPath();
     std::string activeVer = m_launcherConfig->GetSelectedVersion();
     if (activeVer.empty() || activeVer == "vanilla") {
-        activeVer = isaacInfo.valid ? isaacInfo.detectedVersion : "v1.9.7.17";
+        activeVer = isaacInfo.valid ? isaacInfo.detectedVersion : "v1.9.7.19";
     }
     m_optionsMgr->Initialize(schemaPath, activeVer);
 

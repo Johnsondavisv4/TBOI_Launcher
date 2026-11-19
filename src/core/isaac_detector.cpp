@@ -165,7 +165,7 @@ std::string IsaacDetector::ExtractVersionFromPE(const fs::path& exePath) {
             file.seekg(currentPos, std::ios::beg);
 
             std::string sectionStr(sectionData.begin(), sectionData.end());
-            // Match patterns like "v1.9.7.15", "v1.9.7.17", "1.9.7.17"
+            // Match patterns like "v1.9.7.15", "v1.9.7.19", "1.9.7.19"
             std::regex verRegex(R"(v1\.[0-9]+\.[0-9]+\.[0-9]+)");
             std::smatch match;
             if (std::regex_search(sectionStr, match, verRegex)) {
@@ -175,7 +175,7 @@ std::string IsaacDetector::ExtractVersionFromPE(const fs::path& exePath) {
         }
     }
 
-    return "v1.9.7.17"; // Safe default if Repentance+ binary format is detected
+    return "v1.9.7.19";
 }
 
 fs::path IsaacDetector::ResolveOptionsIniPath(const fs::path& isaacDir, const std::string& edition) {

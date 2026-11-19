@@ -72,7 +72,7 @@ bool OptionsManager::Initialize(const fs::path& schemaPath, const std::string& d
     if (!m_schema.LoadFromFile(schemaPath)) {
         return false;
     }
-    m_activeVersion = detectedVersion.empty() ? "v1.9.7.15" : detectedVersion;
+    m_activeVersion = detectedVersion.empty() ? "v1.9.7.19" : detectedVersion;
     m_initialized = true;
     return true;
 }

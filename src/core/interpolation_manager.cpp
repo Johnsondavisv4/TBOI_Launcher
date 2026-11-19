@@ -51,7 +51,7 @@ InterpolationStatus InterpolationManager::GetStatus(
     // 1. Determine effective version
     std::string effectiveVer = versionId;
     if (effectiveVer.empty() || effectiveVer == "vanilla") {
-        effectiveVer = isaacInfo.valid ? isaacInfo.detectedVersion : "v1.9.7.17";
+        effectiveVer = isaacInfo.valid ? isaacInfo.detectedVersion : "v1.9.7.19";
     }
     status.targetVersion = OptionsSchema::NormalizeVersion(effectiveVer);
 

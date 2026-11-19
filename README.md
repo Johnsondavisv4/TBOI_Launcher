@@ -15,13 +15,13 @@ This project was developed for personal use.
 | Afterbirth+ | Included | — |
 | Repentance | Included | Included for v1.7.9b.J835 |
 | Repentance+ v1.9.7.15 | Included | Included |
-| Repentance+ v1.9.7.17 | Steam base installation | Included |
+| Repentance+ v1.9.7.19 | Steam base installation | Included |
 
-The bundled downgrades require a Steam installation of **Repentance+ v1.9.7.17.J460**. Select a version and click **Prepare Version** to create a separate copy under the game's `versions/` folder. Select **Steam Vanilla** to launch the installed Steam version directly.
+The bundled downgrades require a Steam installation of **Repentance+ v1.9.7.19.J510**. Select a version and click **Prepare Version** to create a separate copy under the game's `versions/` folder. Select **Steam Vanilla** to launch the installed Steam version directly.
 
 ## Launcher features
 
-- **Game Options** edits the selected version's `options.ini`. Repentance+ v1.9.7.17 includes controls for **Epic Overlay** and **EOS Crossplay**.
+- **Game Options** edits the selected version's `options.ini`. Repentance+ v1.9.7.19 includes controls for **Epic Overlay** and **EOS Crossplay**.
 - **Mod Manager** manages Steam Workshop mods. Prepared versions reuse the Steam installation's `mods/` and `data/` folders. In Afterbirth+ and Repentance, the launcher locks **Enable Mods** off and skips Workshop updates at launch. The setting is editable in Repentance+.
 - **120 FPS Patch (Experimental)** installs, toggles, or removes the interpolation patch for the selected supported version. The patch smooths supported animations and lets the game render at up to 120 FPS.
 - **Steam Launch Options** lets you copy the launch command for normal or background execution (*Stealth Mode*). **Check Logs** opens the game's log from the launcher.

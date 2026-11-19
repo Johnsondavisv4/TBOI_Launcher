@@ -218,29 +218,29 @@ int main(int argc, char** argv) {
     CHECK(foundBeta15);
     std::cout << "[TEST] v1.9.7.15 Schema dynamic rules: PASSED\n";
 
-    // Check version rules for v1.9.7.17
-    auto opts17 = schema.GetOptionsForVersion("v1.9.7.17");
-    auto unsupp17 = schema.GetUnsupportedKeysForVersion("v1.9.7.17");
-    CHECK(unsupp17.find("AcceptedModDisclaimer") == unsupp17.end()); // AcceptedModDisclaimer is present across all versions
+    // Check version rules for v1.9.7.19
+    auto opts19 = schema.GetOptionsForVersion("v1.9.7.19");
+    auto unsupp19 = schema.GetUnsupportedKeysForVersion("v1.9.7.19");
+    CHECK(unsupp19.find("AcceptedModDisclaimer") == unsupp19.end()); // AcceptedModDisclaimer is present across all versions
 
-    bool foundBeta17 = false;
-    bool foundExclusive17 = false;
-    for (const auto& opt : opts17) {
-        if (opt.resolvedKey == "AcceptedPublicBeta_v1.9.7.17") {
-            foundBeta17 = true;
+    bool foundBeta19 = false;
+    bool foundExclusive19 = false;
+    for (const auto& opt : opts19) {
+        if (opt.resolvedKey == "AcceptedPublicBeta_v1.9.7.19") {
+            foundBeta19 = true;
         }
         if (opt.rawKey == "UseExclusiveFullscreen") {
-            foundExclusive17 = true;
+            foundExclusive19 = true;
         }
     }
-    CHECK(foundBeta17);
-    CHECK(foundExclusive17);
+    CHECK(foundBeta19);
+    CHECK(foundExclusive19);
 
-    // Test version normalization (removing build suffixes like .J460)
-    CHECK(OptionsSchema::ResolveDynamicKey("AcceptedPublicBeta_<VERSION>", "v1.9.7.17.J460") == "AcceptedPublicBeta_v1.9.7.17");
+    // Test version normalization (removing build suffixes like .J510)
+    CHECK(OptionsSchema::ResolveDynamicKey("AcceptedPublicBeta_<VERSION>", "v1.9.7.19.J510") == "AcceptedPublicBeta_v1.9.7.19");
     CHECK(OptionsSchema::ResolveDynamicKey("AcceptedPublicBeta_<VERSION>", "v1.9.7.15") == "AcceptedPublicBeta_v1.9.7.15");
 
-    std::cout << "[TEST] v1.9.7.17 Schema dynamic rules & normalization: PASSED\n";
+    std::cout << "[TEST] v1.9.7.19 Schema dynamic rules & normalization: PASSED\n";
 
     // 2. Test OptionsManager
     fs::path tempIni = "test_options.ini";
@@ -280,12 +280,12 @@ int main(int argc, char** argv) {
     std::cout << "[TEST] OptionsManager Read/Write/No-Auto-Inject: PASSED\n";
 
     // Test version migration on options
-    optMgr2.SetActiveVersion("v1.9.7.17");
-    CHECK(optMgr2.GetBool("AcceptedPublicBeta_v1.9.7.17") == true);
+    optMgr2.SetActiveVersion("v1.9.7.19");
+    CHECK(optMgr2.GetBool("AcceptedPublicBeta_v1.9.7.19") == true);
     CHECK(optMgr2.GetValue("AcceptedPublicBeta_v1.9.7.15").empty());
     std::cout << "[TEST] OptionsManager Version Migration: PASSED\n";
 
-    for (const std::string version : {"Afterbirth+", "Repentance", "v1.9.7.15", "v1.9.7.17"}) {
+    for (const std::string version : {"Afterbirth+", "Repentance", "v1.9.7.15", "v1.9.7.19"}) {
         std::ofstream(tempIni) << "[Options]\nEnableMods=1\n";
         CHECK(optMgr2.Initialize(schemaPath, version));
         CHECK(optMgr2.LoadDefaultTemplate(tempIni));
@@ -333,10 +333,10 @@ int main(int argc, char** argv) {
     CHECK(optTplMgr.GetBool("AcceptedPublicBeta_v1.9.7.15") == true);
     CHECK(optTplMgr.GetBool("AcceptedModDisclaimer") == true);
 
-    // Switch active version to v1.9.7.17 and verify AcceptedPublicBeta_<VERSION> resolves to v1.9.7.17
-    optTplMgr.SetActiveVersion("v1.9.7.17");
-    CHECK(optTplMgr.GetBool("AcceptedPublicBeta_v1.9.7.17") == true);
-    CHECK(optTplMgr.GetDefaultValue("AcceptedPublicBeta_v1.9.7.17") == "1");
+    // Switch active version to v1.9.7.19 and verify AcceptedPublicBeta_<VERSION> resolves to v1.9.7.19
+    optTplMgr.SetActiveVersion("v1.9.7.19");
+    CHECK(optTplMgr.GetBool("AcceptedPublicBeta_v1.9.7.19") == true);
+    CHECK(optTplMgr.GetDefaultValue("AcceptedPublicBeta_v1.9.7.19") == "1");
 
     // Starting any supported edition can seed its INI without opening the options dialog.
     const fs::path initialOptionsRoot = "test_initial_options";
@@ -353,7 +353,7 @@ int main(int argc, char** argv) {
         {"Afterbirth+", "Afterbirth+", "EnableMods=0", "0", false, false},
         {"Repentance", "Repentance", "EnableMods=0", "4", false, false},
         {"v1.9.7.15.J374", "Repentance+", "EnableMods=1", "", true, false},
-        {"v1.9.7.17.J460", "Repentance+", "EnableMods=1", "", true, true},
+        {"v1.9.7.19.J510", "Repentance+", "EnableMods=1", "", true, true},
     };
 
     optTplMgr.SetFloat("MusicVolume", 0.75);
@@ -408,7 +408,7 @@ int main(int argc, char** argv) {
         fs::remove(initialIni);
         fs::remove(initialIni.parent_path());
     }
-    CHECK(optTplMgr.GetActiveVersion() == "v1.9.7.17");
+    CHECK(optTplMgr.GetActiveVersion() == "v1.9.7.19");
     CHECK(optTplMgr.GetFloat("MusicVolume") == 0.75);
     optTplMgr.SetBool("CameraStyle", false);
     CHECK(optTplMgr.GetValue("CameraStyle") == "2");
@@ -692,7 +692,7 @@ int main(int argc, char** argv) {
     VersionManager verMgr;
     IsaacInstallationInfo mockInfo;
     mockInfo.valid = true;
-    mockInfo.detectedVersion = "v1.9.7.17";
+    mockInfo.detectedVersion = "v1.9.7.19";
     mockInfo.rootDirectory = "C:/Games/Binding of Isaac";
     mockInfo.executablePath = "C:/Games/Binding of Isaac/isaac-ng.exe";
 
@@ -772,7 +772,7 @@ int main(int argc, char** argv) {
 
     IsaacInstallationInfo testIsaacInfo;
     testIsaacInfo.valid = true;
-    testIsaacInfo.detectedVersion = "v1.9.7.15";
+    testIsaacInfo.detectedVersion = "v1.9.7.19";
     testIsaacInfo.rootDirectory = testGameRoot;
 
     // Check status of a downgraded version that has not been prepared yet
@@ -785,6 +785,8 @@ int main(int argc, char** argv) {
     CHECK(stBefore.isTargetReady);
     CHECK(!stBefore.isInstalled);
     CHECK(stBefore.isSupported);
+    CHECK(stBefore.targetVersion == "v1.9.7.19");
+    CHECK(stBefore.sourceDllPath == testInterpPatchRoot / "Repentance+" / "v1.9.7.19" / "dinput8.dll");
 
     // Install patch
     CHECK(InterpolationManager::InstallPatch("vanilla", testIsaacInfo, "versions", testInterpPatchRoot));

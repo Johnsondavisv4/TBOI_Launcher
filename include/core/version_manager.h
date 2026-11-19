@@ -11,8 +11,8 @@ namespace TBOI {
 
 struct VersionDefinition {
     std::string id;                         // e.g. "vanilla", "v1.9.7.15"
-    std::string displayName;                // e.g. "Steam Vanilla (v1.9.7.17)" or "Repentance+ v1.9.7.15"
-    std::string requiredBaseVersion;        // e.g. "v1.9.7.17.J460" from version.txt (base version requirement)
+    std::string displayName;                // e.g. "Steam Vanilla (v1.9.7.19)" or "Repentance+ v1.9.7.15"
+    std::string requiredBaseVersion;        // e.g. "v1.9.7.19.J510" from version.txt (base version requirement)
     std::string expectedExeHash;            // SHA256 from exehash.txt
     bool isVanilla = false;
     bool isReady = false;                   // Completed preparation with a matching executable hash

@@ -430,7 +430,7 @@ void MainFrame::AddGameConfigurationOptions(wxSizer* sizer, wxWindow* parentBox)
 
 std::string MainFrame::GetOptionsVersion(const std::string& versionId) const {
     if (versionId != "vanilla") return versionId;
-    return m_isaacInfo.valid ? m_isaacInfo.detectedVersion : "v1.9.7.17";
+    return m_isaacInfo.valid ? m_isaacInfo.detectedVersion : "v1.9.7.19";
 }
 
 fs::path MainFrame::GetOptionsIniPath(const std::string& versionId) const {
