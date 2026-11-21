@@ -32,6 +32,8 @@ You can place an `options.ini` beside the launcher to supply defaults for missin
 
 Extract the release ZIP and keep `TBOI_Launcher.exe`, `data.bin`, and `steam_appid.txt` together. Start Steam and open `TBOI_Launcher.exe`. The launcher extracts its files and bundled patches from `data.bin` into `launcher-data/` and checks the package's SHA-256 on startup to detect updates.
 
+The GitHub Actions workflow runs manually. After the build, tests, and packaging succeed, it deletes all previous releases and tags before publishing the new release.
+
 ---
 
 ## Credits

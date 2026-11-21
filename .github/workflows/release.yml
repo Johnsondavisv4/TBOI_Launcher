@@ -3,6 +3,10 @@ name: Build Project and Upload Release
 on:
   workflow_dispatch:
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   BUILD_TYPE: Release
 
@@ -49,9 +53,32 @@ jobs:
         $OutputEncoding = [System.Text.Utf8Encoding]::new($false)
         Get-FileHash .\TBOI_Launcher.zip | Select-Object -ExpandProperty Hash > hash.txt
 
+    - name: Delete all previous releases and tags
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $releaseIds = @(gh api --paginate "repos/$env:GH_REPO/releases?per_page=100" --jq '.[].id')
+        if ($LASTEXITCODE -ne 0) { throw 'Could not list previous releases' }
+        $tags = @(gh api --paginate "repos/$env:GH_REPO/tags?per_page=100" --jq '.[].name')
+        if ($LASTEXITCODE -ne 0) { throw 'Could not list previous tags' }
+
+        foreach ($releaseId in $releaseIds) {
+          gh api --method DELETE "repos/$env:GH_REPO/releases/$releaseId" --silent
+          if ($LASTEXITCODE -ne 0) { throw "Could not delete release $releaseId" }
+        }
+        foreach ($tag in $tags) {
+          $encodedTag = [Uri]::EscapeDataString($tag)
+          gh api --method DELETE "repos/$env:GH_REPO/git/refs/tags/$encodedTag" --silent
+          if ($LASTEXITCODE -ne 0) { throw "Could not delete tag $tag" }
+        }
+
     - name: Upload release
       uses: ncipollo/release-action@v1
       with:
         artifacts: "${{github.workspace}}/build/Release/TBOI_Launcher.zip,${{github.workspace}}/build/Release/hash.txt"
         tag: ${{steps.version.outputs.version}}
+        commit: ${{ github.sha }}
         token: ${{ secrets.GITHUB_TOKEN }}
