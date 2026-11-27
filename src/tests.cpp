@@ -705,6 +705,7 @@ int main(int argc, char** argv) {
     const auto repentancePlus = verMgr.FindVersion("v1.9.7.15");
     CHECK(repentancePlus.has_value());
     CHECK(!repentancePlus->isVanilla);
+    CHECK(!repentancePlus->requiredBaseVersion.empty());
     CHECK(repentancePlus->patchDirectory == patchesDir / "Repentance+" / "v1.9.7.15");
     CHECK(repentancePlus->targetDirectory == fs::path("versions") / "v1.9.7.15");
     std::cout << "[TEST] VersionManager ScanVersions discovered v1.9.7.15: PASSED\n";
@@ -772,8 +773,9 @@ int main(int argc, char** argv) {
 
     IsaacInstallationInfo testIsaacInfo;
     testIsaacInfo.valid = true;
-    testIsaacInfo.detectedVersion = "v1.9.7.19";
+    testIsaacInfo.detectedVersion = repentancePlus->requiredBaseVersion;
     testIsaacInfo.rootDirectory = testGameRoot;
+    const auto expectedVanillaVersion = OptionsSchema::NormalizeVersion(testIsaacInfo.detectedVersion);
 
     // Check status of a downgraded version that has not been prepared yet
     auto stUnprepared = InterpolationManager::GetStatus("v1.9.7.15", testIsaacInfo, "non_existent_versions_dir", testInterpPatchRoot);
@@ -785,8 +787,8 @@ int main(int argc, char** argv) {
     CHECK(stBefore.isTargetReady);
     CHECK(!stBefore.isInstalled);
     CHECK(stBefore.isSupported);
-    CHECK(stBefore.targetVersion == "v1.9.7.19");
-    CHECK(stBefore.sourceDllPath == testInterpPatchRoot / "Repentance+" / "v1.9.7.19" / "dinput8.dll");
+    CHECK(stBefore.targetVersion == expectedVanillaVersion);
+    CHECK(stBefore.sourceDllPath == testInterpPatchRoot / "Repentance+" / expectedVanillaVersion / "dinput8.dll");
 
     // Install patch
     CHECK(InterpolationManager::InstallPatch("vanilla", testIsaacInfo, "versions", testInterpPatchRoot));
